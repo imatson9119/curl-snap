@@ -7,8 +7,8 @@
 class CurlSnap < Formula
   desc "Turn a curl request into a polished PNG for PR evidence"
   homepage "https://github.com/imatson9119/curl-snap"
-  url "https://registry.npmjs.org/curl-snap/-/curl-snap-1.0.0.tgz"
-  sha256 "REPLACE_WITH_TARBALL_SHA256"
+  url "https://registry.npmjs.org/curl-snap/-/curl-snap-1.1.0.tgz"
+  sha256 "38b6ebccce408cc18cb8a84ca5dc3c882e0b305a6a03b4de528c94530d5bee76"
   license "MIT"
 
   depends_on "node"
