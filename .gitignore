@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Generated evidence (don't commit stray snaps from the repo root)
+/curl-snap-*.png
+
+# Local config
+.curl-snap.json
+curl-snap.config.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor cruft
+.DS_Store
+.idea/
+.vscode/
+*.swp

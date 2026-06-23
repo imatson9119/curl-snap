@@ -1,0 +1,46 @@
+{
+  "name": "curl-snap",
+  "version": "1.0.0",
+  "description": "Turn a curl request into a polished PNG for PR evidence — runs the request and screenshots a clean card of the route, headers, request, and response.",
+  "type": "module",
+  "bin": {
+    "curl-snap": "bin/curl-snap.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node bin/curl-snap.js",
+    "snap": "node bin/curl-snap.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.0.0"
+  },
+  "keywords": [
+    "curl",
+    "screenshot",
+    "api",
+    "pull-request",
+    "evidence",
+    "http",
+    "cli",
+    "documentation",
+    "rest"
+  ],
+  "author": "Ian Matson (https://ian-matson.com)",
+  "license": "MIT",
+  "homepage": "https://github.com/imatson9119/curl-snap#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imatson9119/curl-snap.git"
+  },
+  "bugs": {
+    "url": "https://github.com/imatson9119/curl-snap/issues"
+  }
+}
