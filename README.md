@@ -1,5 +1,9 @@
 # curl-snap
 
+[![npm version](https://img.shields.io/npm/v/curl-snap.svg)](https://www.npmjs.com/package/curl-snap)
+[![node](https://img.shields.io/node/v/curl-snap.svg)](https://nodejs.org)
+[![license: MIT](https://img.shields.io/npm/l/curl-snap.svg)](LICENSE)
+
 Turn a curl request into a clean PNG you can paste into a PR.
 
 Every PR at work wants a screenshot proving the happy and sad paths of any
