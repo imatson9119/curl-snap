@@ -121,6 +121,11 @@ export function buildHtml(model) {
     sections.push(section('Command', `<pre class="code cmd">${escapeHtml(model.command)}</pre>`));
   }
 
+  // Query parameters pulled from the URL.
+  if (model.query && model.query.length) {
+    sections.push(section('Query Parameters', kvBlock(model.query)));
+  }
+
   // Request headers (only those explicitly set).
   if (headers.length) {
     sections.push(section('Request Headers', kvBlock(headers)));

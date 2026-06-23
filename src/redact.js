@@ -80,6 +80,18 @@ export function redactHeaders(headers, options, { substringMatch = true } = {}) 
   );
 }
 
+/**
+ * Redact a list of {name, value} query params by name.
+ * @returns {{name: string, value: string}[]}
+ */
+export function redactParams(params, options) {
+  if (!options.enabled) return params;
+  const { extra, reveal } = buildMatchers(options);
+  return params.map((p) =>
+    keyIsSensitive(p.name, extra, reveal) ? { name: p.name, value: MASK } : p
+  );
+}
+
 /** Recursively mask sensitive keys within a parsed JSON value. */
 function redactJsonValue(value, extra, reveal) {
   if (Array.isArray(value)) {

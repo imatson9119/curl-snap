@@ -6,7 +6,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Query parameters are extracted from the URL into their own card section
+  (sensitive ones masked), keeping the route line clean.
+
 ### Changed
+- By default no file is written — the image is copied to the clipboard only.
+  Pass `--out`/`--out-dir` to save a PNG to disk.
 - Running `curl-snap` with no curl now prints a short description and version
   instead of reading the clipboard. Clipboard input moved behind `-c`/`--clipboard`.
 - Removed the "API evidence" subtext from the card footer.

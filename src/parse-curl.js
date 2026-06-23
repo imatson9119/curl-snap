@@ -320,14 +320,17 @@ export function parseCurl(command) {
 
   let domain = url;
   let path = url;
+  const query = [];
   try {
     const u = new URL(url);
     domain = u.host;
-    path = u.pathname + u.search;
-    if (path === '') path = '/';
+    path = u.pathname || '/';
+    // Pull query params out of the URL so they render as their own section
+    // instead of cluttering the route line. searchParams decodes %-encoding.
+    for (const [name, value] of u.searchParams) query.push({ name, value });
   } catch {
     warnings.push(`Could not parse URL: ${url}`);
   }
 
-  return { method, url, domain, path, headers, body, insecure, warnings };
+  return { method, url, domain, path, query, headers, body, insecure, warnings };
 }

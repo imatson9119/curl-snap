@@ -66,15 +66,16 @@ curl-snap -c
 Run `curl-snap` on its own and it just prints its description and version; add
 `--help` for the full list of options.
 
-You get a PNG in the current directory, a copy on your clipboard, and a quick
-status/timing summary in the terminal.
+By default you get the image **on your clipboard** (ready to paste) plus a quick
+status/timing summary in the terminal — no file is written. Pass `--out` (or
+`--out-dir`) when you actually want to keep a PNG on disk.
 
 ### Options
 
 | Flag | What it does |
 | --- | --- |
-| `-o, --out <file>` | Output PNG path (default `./curl-snap-<timestamp>.png`) |
-| `--out-dir <dir>` | Where to drop the timestamped PNG (when `--out` isn't set) |
+| `-o, --out <file>` | Save the PNG to this path (otherwise it's clipboard-only) |
+| `--out-dir <dir>` | Save a timestamped PNG into this directory |
 | `--copy` / `--no-copy` | Copy (or don't) the image to the clipboard |
 | `--no-redact` | Show sensitive values (they're masked by default) |
 | `--redact a,b` | Extra header/JSON keys to mask |
@@ -167,6 +168,8 @@ default folder.
 - The method (color-coded), the path, and the domain in small, unemphasized text.
 - A colored strip up top matching the method, and one along the bottom matching
   the response status — so you can tell a 200 from a 500 at a glance.
+- Query parameters, pulled out of the URL into their own section so the route
+  line stays readable (and sensitive ones get masked).
 - Only the headers you actually set. curl's auto-added defaults never show up,
   because the card is built from your command, not from whatever went over the wire.
 - Request and response bodies, with JSON pretty-printed and colorized.
@@ -181,7 +184,7 @@ the eyes and I like it.
 2. Run it with Node's built-in `fetch` and capture the status, timing, and body.
 3. Redact anything sensitive (for display only).
 4. Render an HTML card and screenshot it with headless Chrome via `puppeteer-core`.
-5. Save the PNG and copy it to the clipboard.
+5. Copy the PNG to the clipboard (and save it to disk if you passed `--out`).
 
 ## Limitations
 

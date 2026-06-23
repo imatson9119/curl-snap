@@ -1,11 +1,12 @@
 // Orchestration: parse → execute → redact → render → save → copy → report.
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { parseCurl } from './parse-curl.js';
 import { execute } from './execute.js';
-import { redactHeaders, redactBody, redactPath } from './redact.js';
+import { redactHeaders, redactBody, redactPath, redactParams } from './redact.js';
 import { renderPng } from './render.js';
 import { copyImageToClipboard } from './clipboard.js';
 
@@ -76,6 +77,7 @@ export async function run(options) {
 
   // Redact for display only.
   const displayHeaders = redactHeaders(spec.headers, redaction);
+  const displayQuery = redactParams(spec.query || [], redaction);
   const displayBody = prettyJson(redactBody(spec.body, redaction));
   const displayPath = redactPath(spec.path, redaction);
   const displayResponseBody = response.ok ? redactBody(response.body, redaction) : response.body;
@@ -101,6 +103,7 @@ export async function run(options) {
     method: spec.method,
     domain: spec.domain,
     path: displayPath,
+    query: displayQuery,
     headers: displayHeaders,
     body: displayBody,
     bodyIsJson: isJsonString(displayBody),
@@ -115,9 +118,26 @@ export async function run(options) {
 
   const png = await renderPng(model, { chromePath: options.chrome });
 
-  const outPath = resolveOutPath(options, stamp);
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, png);
+  // Decide where the PNG lands. By default we don't drop a file in the cwd — we
+  // just copy to the clipboard. A file is written when the user asks for one
+  // (--out / --out-dir), or as a fallback when there's nowhere else for it to go.
+  const explicitDest = Boolean(options.out || options.outDir);
+  const savePath = options.out
+    ? path.resolve(options.out)
+    : path.resolve(options.outDir || '.', `curl-snap-${stamp}.png`);
+
+  let savedPath = null; // a persistent file we report to the user
+  let clipSource; // the file fed to clipboard / --open
+  if (explicitDest || options.copy === false) {
+    fs.mkdirSync(path.dirname(savePath), { recursive: true });
+    fs.writeFileSync(savePath, png);
+    savedPath = savePath;
+    clipSource = savePath;
+  } else {
+    // Ephemeral: clipboard (and --open) still need a real file to point at.
+    clipSource = path.join(os.tmpdir(), `curl-snap-${stamp}-${process.pid}.png`);
+    fs.writeFileSync(clipSource, png);
+  }
 
   // Terminal summary.
   const sc = statusColor(response.status, response.ok);
@@ -130,16 +150,30 @@ export async function run(options) {
   } else {
     process.stderr.write(`${c.red('●')} ${c.red('request failed')} ${c.dim(`· ${response.error}`)}\n`);
   }
-  process.stderr.write(`${c.green('✔')} saved ${c.bold(outPath)}\n`);
+  if (savedPath) process.stderr.write(`${c.green('✔')} saved ${c.bold(savedPath)}\n`);
 
+  let copied = false;
   if (options.copy !== false) {
-    const result = await copyImageToClipboard(outPath);
-    if (result.copied) process.stderr.write(`${c.green('📋')} copied to clipboard\n`);
+    const result = await copyImageToClipboard(clipSource);
+    copied = result.copied;
+    if (copied) process.stderr.write(`${c.green('📋')} copied to clipboard\n`);
     else process.stderr.write(c.dim(`   (clipboard skipped: ${result.reason})\n`));
   }
 
+  // If the image had nowhere to go (no file requested, clipboard failed), save
+  // it in the cwd anyway so the work isn't lost.
+  if (!savedPath && !copied) {
+    savedPath = path.resolve(`curl-snap-${stamp}.png`);
+    fs.writeFileSync(savedPath, png);
+    process.stderr.write(
+      `${c.green('✔')} saved ${c.bold(savedPath)} ${c.dim('(clipboard unavailable)')}\n`
+    );
+  } else if (!savedPath) {
+    process.stderr.write(c.dim('   image not saved — pass --out to keep a file\n'));
+  }
+
   if (options.open && process.platform === 'darwin') {
-    execFile('open', [outPath], () => {});
+    execFile('open', [savedPath || clipSource], () => {});
   }
 
   if (redaction.enabled) {
@@ -152,15 +186,7 @@ export async function run(options) {
     );
   }
 
-  return { outPath, response, spec };
-}
-
-// Resolve the output PNG path: explicit --out wins; else a timestamped name in
-// outDir (if configured) or the current directory.
-function resolveOutPath(options, stamp) {
-  if (options.out) return path.resolve(options.out);
-  const name = `curl-snap-${stamp}.png`;
-  return path.resolve(options.outDir || '.', name);
+  return { outPath: savedPath, response, spec };
 }
 
 function headerValue(headers, name) {
