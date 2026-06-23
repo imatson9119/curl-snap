@@ -304,7 +304,7 @@ export function buildHtml(model) {
       ${sections.join('\n      ')}
     </div>
     <div class="footer">
-      <span class="brand"><b>curl-snap</b> · API evidence</span>
+      <span class="brand"><b>curl-snap</b></span>
       <span>${escapeHtml(model.timestamp || '')}</span>
     </div>
     <div class="strip strip-bottom"></div>

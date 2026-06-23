@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Running `curl-snap` with no curl now prints a short description and version
+  instead of reading the clipboard. Clipboard input moved behind `-c`/`--clipboard`.
+- Removed the "API evidence" subtext from the card footer.
+
 ## [1.0.0] - 2026-06-23
 
 Initial release.

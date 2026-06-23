@@ -20,7 +20,8 @@ curl-snap — turn a curl request into a polished PNG for PR evidence
 Usage:
   curl-snap '<curl command>'        capture the given curl
   pbpaste | curl-snap               read the curl from stdin
-  curl-snap                         read the curl from the clipboard
+  curl-snap -c                      read the curl from the clipboard
+  curl-snap                         show this tool's description and version
 
 Verbosity (more metadata as you go up):
   -v, --verbosity medium            response headers + response size/type
@@ -34,6 +35,7 @@ Metadata toggles (override whatever verbosity implies):
       --command          / --no-command            (reconstructed, redacted source curl)
 
 Options:
+  -c, --clipboard      read the curl command from the clipboard
   -o, --out <file>     output PNG path (default ./curl-snap-<timestamp>.png)
       --out-dir <dir>  directory for the timestamped PNG (when --out is not set)
       --copy / --no-copy        copy (or don't) the image to the clipboard
@@ -92,6 +94,8 @@ function parseArgs(argv) {
       case '--help': opts.help = true; break;
       case '-V':
       case '--version': opts.version = true; break;
+      case '-c':
+      case '--clipboard': opts.clipboard = true; break;
       case '-o':
       case '--out': opts.out = value(); break;
       case '--out-dir': opts.outDir = value(); break;
@@ -187,16 +191,20 @@ async function main() {
   }
 
   let curl = opts._.join(' ').trim();
-  if (!curl) curl = await readStdin();
-  if (!curl) {
+  if (!curl && !process.stdin.isTTY) curl = await readStdin();
+  if (!curl && opts.clipboard) {
     curl = await readClipboard();
     if (curl) process.stderr.write('\x1b[2m(using curl command from clipboard)\x1b[0m\n');
   }
 
   if (!curl) {
-    process.stderr.write('No curl command provided. Pass one as an argument, pipe it in, or copy it.\n\n');
-    process.stdout.write(HELP);
-    process.exitCode = 1;
+    // Bare invocation (no curl anywhere): show a friendly description + version
+    // rather than trying to run nothing.
+    process.stdout.write(
+      `\x1b[1mcurl-snap\x1b[0m ${VERSION}\n` +
+        'Turn a curl request into a polished PNG for PR evidence.\n\n' +
+        "Usage: curl-snap '<curl command>'   ·   run with --help for all options\n"
+    );
     return;
   }
 

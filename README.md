@@ -59,9 +59,12 @@ curl-snap "curl -X POST https://api.example.com/users \
 # ...or pipe it in
 pbpaste | curl-snap
 
-# ...or just copy a curl from anywhere and run it bare — it reads your clipboard
-curl-snap
+# ...or copy a curl from anywhere and read it off the clipboard
+curl-snap -c
 ```
+
+Run `curl-snap` on its own and it just prints its description and version; add
+`--help` for the full list of options.
 
 You get a PNG in the current directory, a copy on your clipboard, and a quick
 status/timing summary in the terminal.
