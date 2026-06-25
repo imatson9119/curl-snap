@@ -8,8 +8,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 - The window title bar is now **on by default** — pass `--no-window` to remove it.
-- The response status color bar now sits **above the footer**, so both color
-  bars are framed inside the card (the footer is the bottom edge).
+- Reworked the card frame: the method color bar sits under the header and the
+  status color bar sits above the footer, so the two bars **bracket the body**
+  and both are framed inside the card (header and footer are the chrome edges).
 
 ## [2.1.0] - 2026-06-25
 

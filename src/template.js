@@ -397,10 +397,8 @@ export function buildTree(model) {
       boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
     },
     [
-      // Optional window chrome (above the method strip).
+      // Optional window chrome (title bar).
       ...(windowTitle !== null ? [windowBar(windowTitle, theme)] : []),
-      // Top strip (method color).
-      h('div', { display: 'flex', height: 6, width: '100%', backgroundColor: mColor }, []),
       // Header.
       h(
         'div',
@@ -409,7 +407,6 @@ export function buildTree(model) {
           flexDirection: 'column',
           padding: '18px 22px',
           backgroundColor: theme.panel,
-          borderBottom: `1px solid ${theme.border}`,
         },
         [
           h('div', { display: 'flex', alignItems: 'center', gap: 12 }, [
@@ -451,6 +448,9 @@ export function buildTree(model) {
             : []),
         ]
       ),
+      // Top strip (method color) — under the header, bracketing the body with
+      // the status strip below it.
+      h('div', { display: 'flex', height: 6, width: '100%', backgroundColor: mColor }, []),
       // Body (sections).
       h('div', { display: 'flex', flexDirection: 'column', padding: '4px 22px 18px' }, sectionNodes),
       // Bottom strip (status tone color) — sits above the footer so both color
