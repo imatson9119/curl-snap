@@ -10,9 +10,12 @@ the `version` field in `package.json` and then tags `v<version>`, publishes to
 npm, and cuts a GitHub Release with notes from the CHANGELOG. The only manual
 step left is bumping the Homebrew tap (a separate repo).
 
-> One-time setup: add an npm automation token as the repo secret `NPM_TOKEN`
-> (Settings → Secrets and variables → Actions). `GITHUB_TOKEN` is provided
-> automatically.
+> One-time setup: configure an npm **trusted publisher** for the `curl-snap`
+> package (npmjs.com → package → Settings → Trusted Publisher) pointing at this
+> repo, workflow filename `release.yml`, and environment `release`. Then create a
+> GitHub Actions environment named `release` (repo Settings → Environments) —
+> optionally with protection rules. No `NPM_TOKEN` is needed; publishing uses
+> OIDC, and `GITHUB_TOKEN` is provided automatically.
 
 ## 1. Cut the version
 

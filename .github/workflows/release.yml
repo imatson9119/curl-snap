@@ -6,7 +6,9 @@
 # is the single trigger — no other ceremony. Merges that don't touch the version
 # are a no-op.
 #
-# Requires repo secret NPM_TOKEN (an npm automation token). The Homebrew tap is
+# Publishing uses npm trusted publishing (OIDC) — no NPM_TOKEN secret. The npm
+# package must have a trusted publisher configured pointing at this repo, the
+# workflow file `release.yml`, and the `release` environment. The Homebrew tap is
 # still updated by hand — see RELEASING.md.
 
 name: release
@@ -21,25 +23,30 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write   # create tags + GitHub Releases
-  id-token: write   # npm provenance
+  contents: read
 
 jobs:
-  release:
+  # Decide whether this push bumped the version (and the tag is new). Kept
+  # separate so the protected `release` environment is only entered for an
+  # actual release, not on every push to main.
+  check:
     runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2   # need the previous commit to diff the version
+          fetch-depth: 2      # previous commit, to diff the version
+          fetch-tags: true    # so we can tell if v<version> already exists
 
-      # Decide whether this push bumped the version, and whether that tag is new.
       - name: Check for a version bump
         id: check
         run: |
           CURRENT=$(node -p "require('./package.json').version")
           git show HEAD~1:package.json > /tmp/prev-package.json 2>/dev/null || echo '{}' > /tmp/prev-package.json
           PREVIOUS=$(node -p "require('/tmp/prev-package.json').version || ''")
-          echo "current=$CURRENT"  >> "$GITHUB_OUTPUT"
+          echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
           echo "Current version:  $CURRENT"
           echo "Previous version: $PREVIOUS"
           if [ "$CURRENT" = "$PREVIOUS" ]; then
@@ -52,42 +59,52 @@ jobs:
             echo "release=true" >> "$GITHUB_OUTPUT"
           fi
 
+  publish:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write   # create tags + GitHub Releases
+      id-token: write   # OIDC for npm trusted publishing + provenance
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Set up Node
-        if: steps.check.outputs.release == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
 
+      # Trusted publishing (OIDC) needs npm >= 11.5.1; Node 20 ships npm 10.x.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
       - name: Install dependencies
-        if: steps.check.outputs.release == 'true'
         run: npm ci
 
       # Catch the obvious breakage before we publish: the CLI fails to load
       # (e.g. a bad import or a missing bundled font), or the fonts didn't make
       # it into the tarball because the package.json "files" list regressed.
       - name: Verify package
-        if: steps.check.outputs.release == 'true'
         run: |
           node bin/curl-snap.js --version
           npm pack --dry-run 2>&1 | grep -q 'assets/fonts/FiraMono-Regular.ttf' \
             || { echo '::error::bundled fonts missing from the npm package'; exit 1; }
 
       # Publish first: if npm rejects the version, we stop before tagging so a
-      # failed run leaves no dangling tag or release.
+      # failed run leaves no dangling tag or release. No token — the OIDC trusted
+      # publisher mints a short-lived credential, and provenance is automatic.
       - name: Publish to npm
-        if: steps.check.outputs.release == 'true'
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # Pull the matching CHANGELOG section for the release body; fall back to
       # auto-generated notes if there's no entry for this version.
       - name: Extract changelog notes
-        if: steps.check.outputs.release == 'true'
         id: notes
         run: |
-          VERSION="${{ steps.check.outputs.current }}"
           awk -v ver="$VERSION" '
             $0 ~ "^## \\[" ver "\\]" { flag=1; next }
             flag && /^## \[/         { exit }
@@ -103,11 +120,9 @@ jobs:
 
       # gh release create also creates the tag v<version> at this commit.
       - name: Create GitHub Release
-        if: steps.check.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ steps.check.outputs.current }}"
           if [ "${{ steps.notes.outputs.have_notes }}" = "true" ]; then
             gh release create "v$VERSION" --title "v$VERSION" --notes-file /tmp/release-notes.md
           else
