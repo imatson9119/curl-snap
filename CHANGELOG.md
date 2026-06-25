@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-06-25
+
 ### Changed
 - The window title bar is now **on by default** — pass `--no-window` to remove it.
 - Reworked the card frame: the method color bar sits under the header and the
@@ -83,7 +85,8 @@ Initial release.
 - Config files (global + project + `--config`) with `--init-config`,
   `--print-config`, and `--no-config`.
 
-[Unreleased]: https://github.com/imatson9119/curl-snap/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/imatson9119/curl-snap/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.2.0
 [2.1.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.1.0
 [2.0.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.0.0
 [1.1.0]: https://github.com/imatson9119/curl-snap/releases/tag/v1.1.0
