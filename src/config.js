@@ -112,6 +112,16 @@ export function resolveOptions(cliOpts, config) {
     return dflt;
   };
 
+  // Validate the appearance/output options: warn + fall back rather than throw,
+  // and collect the warnings so cli.js can print them like theme warnings.
+  const warnings = [];
+  const bg = validateBackground(pick('background', 'none'));
+  if (bg.warning) warnings.push(bg.warning);
+  const pad = validatePadding(pick('padding', 28));
+  if (pad.warning) warnings.push(pad.warning);
+  const fmt = validateFormat(pick('format', 'png'));
+  if (fmt.warning) warnings.push(fmt.warning);
+
   return {
     curl: cliOpts.curl,
     out: cliOpts.out, // per-run only; not taken from config
@@ -124,9 +134,46 @@ export function resolveOptions(cliOpts, config) {
     width: pick('width', 760),
     theme: pick('theme', 'gruvbox'), // preset name OR an inline theme object
     themes: config.themes || undefined, // user-defined named themes
+    background: bg.value,
+    padding: pad.value,
+    window: pick('window', false),
+    title: pick('title', undefined),
+    format: fmt.value,
+    formatExplicit: cliOpts.format !== undefined || config.format !== undefined,
     verbosity,
     features,
+    warnings,
   };
+}
+
+// --- appearance/output validators (warn + fall back, never throw) -----------
+
+const COLOR_HEX = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+const COLOR_FUNC = /^(rgb|rgba|hsl|hsla)\(/i;
+const COLOR_NAMED = /^[a-z]+$/i; // permissive: a CSS named color
+const GRADIENT = /^(linear|radial|conic)-gradient\s*\(/i;
+
+function validateBackground(v) {
+  if (v == null) return { value: 'none' };
+  const s = String(v).trim();
+  if (s === '') return { value: 'none' };
+  if (s === 'none' || s === 'transparent' || s === 'auto') return { value: s };
+  if (GRADIENT.test(s) || COLOR_HEX.test(s) || COLOR_FUNC.test(s) || COLOR_NAMED.test(s)) {
+    return { value: s };
+  }
+  return { value: 'none', warning: `Invalid --background ${JSON.stringify(v)}; using none.` };
+}
+
+function validatePadding(v) {
+  const n = Number(v);
+  if (Number.isInteger(n) && n >= 0 && n <= 400) return { value: n };
+  return { value: 28, warning: `Invalid --padding ${JSON.stringify(v)} (expected 0–400); using 28.` };
+}
+
+function validateFormat(v) {
+  const s = String(v).toLowerCase();
+  if (s === 'png' || s === 'svg') return { value: s };
+  return { value: 'png', warning: `Unknown --format ${JSON.stringify(v)} (expected png|svg); using png.` };
 }
 
 /** A sensible starter config users can edit. */
@@ -139,6 +186,11 @@ export function exampleConfig() {
     width: 760,
     theme: 'gruvbox',
     themes: {}, // e.g. { mine: { background: '#101010', green: '#00ff88', … } }
+    background: 'none', // none | a CSS color | a CSS gradient | auto
+    padding: 28,
+    window: false,
+    title: null, // window-bar title (defaults to the request domain)
+    format: 'png', // png | svg
     outDir: null,
     extraRedact: [],
     reveal: [],

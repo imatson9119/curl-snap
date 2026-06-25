@@ -3,6 +3,7 @@ node_modules/
 
 # Generated evidence (don't commit stray snaps from the repo root)
 /curl-snap-*.png
+/curl-snap-*.svg
 
 # Local config
 .curl-snap.json

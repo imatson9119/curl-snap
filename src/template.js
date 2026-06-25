@@ -62,6 +62,83 @@ function plainCode(text) {
 }
 
 const FONT = 'Fira Mono';
+const DEFAULT_PADDING = 28;
+
+// Transparent margin around the card (where the drop shadow lives). Validated in
+// config.js; this is a last-resort guard so the tree never gets NaN/negative.
+export function paddingOf(model) {
+  const p = Number(model.padding);
+  return Number.isFinite(p) && p >= 0 ? p : DEFAULT_PADDING;
+}
+
+// The satori canvas width = card width + padding on both sides. Exported so
+// render.js computes the exact same width satori is told to lay out.
+export function rootWidth(model) {
+  return model.width + 2 * paddingOf(model);
+}
+
+// Map a --background value (+ theme) to root style props. Returns {} for
+// none/unset, which keeps the transparent margin (today's default behavior).
+function rootBackgroundStyle(value, theme) {
+  if (value == null) return {};
+  const v = String(value).trim();
+  if (v === '' || v === 'none' || v === 'transparent') return {};
+  if (v === 'auto') {
+    // A tasteful theme-derived backdrop: subtle diagonal panel → background.
+    return { backgroundImage: `linear-gradient(135deg, ${theme.panel} 0%, ${theme.background} 100%)` };
+  }
+  if (/^(linear|radial|conic)-gradient\s*\(/i.test(v)) return { backgroundImage: v };
+  return { backgroundColor: v };
+}
+
+// A mac-style traffic-light dot.
+function trafficDot(color) {
+  return h('div', { display: 'flex', width: 12, height: 12, borderRadius: 6, backgroundColor: color }, []);
+}
+
+const TITLE_MAX = 48;
+function truncateTitle(s) {
+  const t = String(s).trim();
+  return t.length > TITLE_MAX ? `${t.slice(0, TITLE_MAX - 1)}…` : t;
+}
+
+// An optional window title bar (traffic-light dots + centered title). `title` is
+// pre-truncated. The card's borderRadius + overflow:hidden round the top corners.
+function windowBar(title, theme) {
+  return h(
+    'div',
+    {
+      display: 'flex',
+      alignItems: 'center',
+      height: 36,
+      paddingLeft: 14,
+      paddingRight: 14,
+      backgroundColor: theme.panel,
+      borderBottom: `1px solid ${theme.border}`,
+    },
+    [
+      h('div', { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }, [
+        trafficDot('#ff5f56'), trafficDot('#ffbd2e'), trafficDot('#27c93f'),
+      ]),
+      h(
+        'div',
+        {
+          display: 'flex',
+          flexGrow: 1,
+          justifyContent: 'center',
+          fontSize: 12.5,
+          color: theme.textMuted,
+          letterSpacing: '0.02em',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+        },
+        title
+      ),
+      // Right spacer matching the dot cluster so the title stays optically centered.
+      h('div', { display: 'flex', width: 52, flexShrink: 0 }, []),
+    ]
+  );
+}
 
 // HTTP verb → accent color (drives the method pill and the top strip).
 function methodColor(method, theme) {
@@ -214,6 +291,14 @@ export function buildTree(model) {
   // cli.js always supplies a resolved theme; fall back so direct callers/tests
   // (and any future entry points) still render the default.
   const theme = model.theme || resolveTheme({}).theme;
+  const padding = paddingOf(model);
+  const bgStyle = rootBackgroundStyle(model.background, theme);
+  const windowTitle = model.window
+    ? truncateTitle(model.title != null ? model.title : domain)
+    : null;
+  // When the window bar is showing the domain (window on, no explicit title),
+  // drop the domain row under the method so it isn't duplicated.
+  const showDomain = !(model.window && model.title == null);
 
   const tone = statusTone(response.ok ? response.status : undefined);
   const mColor = methodColor(method, theme);
@@ -312,6 +397,8 @@ export function buildTree(model) {
       boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
     },
     [
+      // Optional window chrome (above the method strip).
+      ...(windowTitle !== null ? [windowBar(windowTitle, theme)] : []),
       // Top strip (method color).
       h('div', { display: 'flex', height: 6, width: '100%', backgroundColor: mColor }, []),
       // Header.
@@ -345,19 +432,23 @@ export function buildTree(model) {
               path
             ),
           ]),
-          h(
-            'div',
-            {
-              display: 'flex',
-              marginTop: 7,
-              marginLeft: 2,
-              fontSize: 12.5,
-              color: theme.textMuted,
-              letterSpacing: '0.02em',
-            },
-            // The old ::before { content:"↗ " } becomes a literal span.
-            [h('span', { opacity: 0.7 }, '↗ '), h('span', {}, domain)]
-          ),
+          ...(showDomain
+            ? [
+                h(
+                  'div',
+                  {
+                    display: 'flex',
+                    marginTop: 7,
+                    marginLeft: 2,
+                    fontSize: 12.5,
+                    color: theme.textMuted,
+                    letterSpacing: '0.02em',
+                  },
+                  // The old ::before { content:"↗ " } becomes a literal span.
+                  [h('span', { opacity: 0.7, marginRight: 6 }, '↗'), h('span', {}, domain)]
+                ),
+              ]
+            : []),
         ]
       ),
       // Body (sections).
@@ -385,16 +476,18 @@ export function buildTree(model) {
     ]
   );
 
-  // Root: 28px transparent padding so the drop shadow has room (replaces the
-  // old measure-and-clip step). No background → transparent margin.
+  // Root: transparent padding so the drop shadow has room (replaces the old
+  // measure-and-clip step). bgStyle is {} by default → transparent margin; a
+  // --background paints the whole canvas (the backdrop behind the card).
   return h(
     'div',
     {
       display: 'flex',
-      width: width + 56,
-      padding: 28,
+      width: rootWidth(model),
+      padding,
       fontFamily: FONT,
       color: theme.text,
+      ...bgStyle,
     },
     card
   );

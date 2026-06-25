@@ -44,8 +44,8 @@ npm link   # puts `curl-snap` on your PATH
 ```
 
 No browser required — curl-snap renders the card entirely in-process (the fonts
-are bundled), so there's nothing else to install. Clipboard auto-copy works out
-of the box on macOS, and on Linux if you have `xclip`.
+are bundled), so there's nothing else to install. Clipboard auto-copy works on
+macOS, Linux (`xclip`/`wl-copy`), and Windows/WSL.
 
 ## Quick start
 
@@ -73,14 +73,19 @@ status/timing summary in the terminal — no file is written. Pass `--out` (or
 
 | Flag | What it does |
 | --- | --- |
-| `-o, --out <file>` | Save the PNG to this path (otherwise it's clipboard-only) |
-| `--out-dir <dir>` | Save a timestamped PNG into this directory |
+| `-o, --out <file>` | Save the image to this path (otherwise it's clipboard-only) |
+| `--out-dir <dir>` | Save a timestamped image into this directory |
+| `--format <fmt>` | Output format: `png` (default) or `svg` |
 | `--copy` / `--no-copy` | Copy (or don't) the image to the clipboard |
 | `--no-redact` | Show sensitive values (they're masked by default) |
 | `--redact a,b` | Extra header/JSON keys to mask |
 | `--reveal a,b` | Header/JSON keys to force-show |
-| `--open` / `--no-open` | Open (or don't) the PNG after making it |
+| `--open` / `--no-open` | Open (or don't) the image after making it |
 | `--width <px>` | Card width (default 760) |
+| `--padding <px>` | Space around the card (default 28) |
+| `--background <v>` | Backdrop: `none` (default), a CSS color, a CSS gradient, or `auto` |
+| `--window` / `--no-window` | Add a macOS-style title bar (default off) |
+| `--title <str>` | Window-bar title (default: the request domain) |
 | `--theme <name>` | Color theme (default `gruvbox`) · see `--list-themes` |
 | `--list-themes` | List the bundled themes and exit |
 | `-h, --help` | Help |
@@ -119,13 +124,15 @@ curl-snap '<curl>' --theme dracula
 curl-snap --list-themes        # see them all
 ```
 
-Bundled themes — dark: `gruvbox`, `dracula`, `nord`, `one-dark`, `catppuccin`
-(Mocha), `tokyo-night`; light: `github-light`, `solarized-light`,
-`catppuccin-latte`.
+Nine themes ship in the box — six dark, three light:
 
-| dracula | github-light |
-| --- | --- |
-| ![dracula](samples/theme-dracula.png) | ![github-light](samples/theme-github-light.png) |
+| `gruvbox` (default) | `dracula` | `nord` |
+| --- | --- | --- |
+| ![gruvbox](samples/themes/gruvbox.png) | ![dracula](samples/themes/dracula.png) | ![nord](samples/themes/nord.png) |
+| **`one-dark`** | **`catppuccin`** (Mocha) | **`tokyo-night`** |
+| ![one-dark](samples/themes/one-dark.png) | ![catppuccin](samples/themes/catppuccin.png) | ![tokyo-night](samples/themes/tokyo-night.png) |
+| **`github-light`** | **`solarized-light`** | **`catppuccin-latte`** |
+| ![github-light](samples/themes/github-light.png) | ![solarized-light](samples/themes/solarized-light.png) | ![catppuccin-latte](samples/themes/catppuccin-latte.png) |
 
 ### Custom themes
 
@@ -148,6 +155,36 @@ default), so you can tweak just a color or two:
 You can also set `theme` directly to an inline object instead of a name. Unknown
 theme names or invalid hex values fall back to the default with a warning rather
 than failing.
+
+## Backdrops & window chrome
+
+For a more share-ready image — tweets, blog posts, slides — drop the card onto a
+backdrop and add a window frame:
+
+```sh
+curl-snap '<curl>' --background "linear-gradient(135deg,#1e3a8a,#7c3aed)" --window
+```
+
+![A curl-snap card with a gradient backdrop and window chrome](samples/showcase-window.png)
+
+- `--background` takes a CSS color (`#0d1117`, `white`), a CSS gradient
+  (`linear-gradient(...)`), or `auto` (a subtle backdrop derived from the active
+  theme). Default is `none` (transparent).
+- `--padding <px>` sets the margin around the card (default 28).
+- `--window` adds a macOS-style title bar; `--title` overrides the default
+  (the request domain).
+
+## SVG output
+
+Pass `--format svg` (or just `--out card.svg`) for a crisp, scalable vector you
+can embed in docs. The text is vectorized, so the SVG is self-contained — no
+fonts required to view it. With `--format svg` the clipboard gets the SVG markup
+as text.
+
+## Clipboard
+
+Auto-copy works on macOS, Linux (X11 via `xclip`, Wayland via `wl-copy`), and
+Windows/WSL. If no clipboard tool is available, curl-snap saves the file instead.
 
 ## Redacting secrets
 
@@ -236,8 +273,8 @@ A few things I left out of v1, mostly on purpose:
   bare URL. Anything fancier (`-F` multipart, client certs, proxies) gets a
   warning, not a crash.
 - One image per request. No combined happy+sad stacking yet.
-- Clipboard auto-copy is macOS-first (Linux via `xclip`); elsewhere it just saves
-  the file.
+- Clipboard image-copy needs a helper present (`xclip`/`wl-copy` on Linux); when
+  none is available curl-snap saves the file instead.
 
 ## Contributing
 

@@ -7,9 +7,9 @@ import { execFile } from 'node:child_process';
 import { parseCurl } from './parse-curl.js';
 import { execute } from './execute.js';
 import { redactHeaders, redactBody, redactPath, redactParams } from './redact.js';
-import { renderPng } from './render.js';
+import { renderPng, renderSvg } from './render.js';
 import { resolveTheme } from './themes.js';
-import { copyImageToClipboard } from './clipboard.js';
+import { copyToClipboard } from './clipboard.js';
 
 // Minimal ANSI helpers for the terminal summary.
 const c = {
@@ -52,6 +52,12 @@ function statusColor(status, ok) {
  * @param {number} [options.width=760]
  * @param {string|Object} [options.theme]   preset name or inline theme object
  * @param {Object} [options.themes]         user-defined named themes
+ * @param {string} [options.background='none']
+ * @param {number} [options.padding=28]
+ * @param {boolean} [options.window=false]
+ * @param {string} [options.title]
+ * @param {'png'|'svg'} [options.format='png']
+ * @param {string[]} [options.warnings]   validation warnings from resolveOptions
  * @param {string} [options.verbosity='low']
  * @param {Object} [options.features]   {responseHeaders, requestMeta, responseMeta, command}
  * @param {string} [options.outDir]
@@ -64,6 +70,21 @@ export async function run(options) {
     extraKeys: options.extraRedact || [],
     reveal: options.reveal || [],
   };
+
+  for (const w of options.warnings || []) process.stderr.write(c.yellow(`⚠ ${w}\n`));
+
+  // Output format: honor --format, else infer from the --out extension.
+  let format = options.format === 'svg' ? 'svg' : 'png';
+  if (options.out) {
+    const outExt = path.extname(options.out).toLowerCase();
+    if (!options.formatExplicit && outExt === '.svg') format = 'svg';
+    else if (options.formatExplicit && outExt && outExt !== `.${format}`) {
+      process.stderr.write(
+        c.yellow(`⚠ --out ${path.basename(options.out)} doesn't match --format ${format}; writing ${format} bytes anyway.\n`)
+      );
+    }
+  }
+  const ext = format === 'svg' ? '.svg' : '.png';
 
   const { theme, warnings: themeWarnings } = resolveTheme({
     name: options.theme,
@@ -122,30 +143,35 @@ export async function run(options) {
     features,
     width,
     theme,
+    background: options.background,
+    padding: options.padding,
+    window: options.window,
+    title: options.title,
     timestamp: human,
   };
 
-  const png = await renderPng(model);
+  // string for svg, Buffer for png — fs.writeFileSync handles both.
+  const output = format === 'svg' ? await renderSvg(model) : await renderPng(model);
 
-  // Decide where the PNG lands. By default we don't drop a file in the cwd — we
-  // just copy to the clipboard. A file is written when the user asks for one
+  // Decide where the image lands. By default we don't drop a file in the cwd —
+  // we just copy to the clipboard. A file is written when the user asks for one
   // (--out / --out-dir), or as a fallback when there's nowhere else for it to go.
   const explicitDest = Boolean(options.out || options.outDir);
   const savePath = options.out
     ? path.resolve(options.out)
-    : path.resolve(options.outDir || '.', `curl-snap-${stamp}.png`);
+    : path.resolve(options.outDir || '.', `curl-snap-${stamp}${ext}`);
 
   let savedPath = null; // a persistent file we report to the user
   let clipSource; // the file fed to clipboard / --open
   if (explicitDest || options.copy === false) {
     fs.mkdirSync(path.dirname(savePath), { recursive: true });
-    fs.writeFileSync(savePath, png);
+    fs.writeFileSync(savePath, output);
     savedPath = savePath;
     clipSource = savePath;
   } else {
     // Ephemeral: clipboard (and --open) still need a real file to point at.
-    clipSource = path.join(os.tmpdir(), `curl-snap-${stamp}-${process.pid}.png`);
-    fs.writeFileSync(clipSource, png);
+    clipSource = path.join(os.tmpdir(), `curl-snap-${stamp}-${process.pid}${ext}`);
+    fs.writeFileSync(clipSource, output);
   }
 
   // Terminal summary.
@@ -163,26 +189,30 @@ export async function run(options) {
 
   let copied = false;
   if (options.copy !== false) {
-    const result = await copyImageToClipboard(clipSource);
+    const result = await copyToClipboard(clipSource, { format });
     copied = result.copied;
-    if (copied) process.stderr.write(`${c.green('📋')} copied to clipboard\n`);
-    else process.stderr.write(c.dim(`   (clipboard skipped: ${result.reason})\n`));
+    if (copied) {
+      const how = format === 'svg' ? 'copied SVG to clipboard' : 'copied to clipboard';
+      process.stderr.write(`${c.green('📋')} ${how}\n`);
+    } else {
+      process.stderr.write(c.dim(`   (clipboard skipped: ${result.reason})\n`));
+    }
   }
 
   // If the image had nowhere to go (no file requested, clipboard failed), save
   // it in the cwd anyway so the work isn't lost.
   if (!savedPath && !copied) {
-    savedPath = path.resolve(`curl-snap-${stamp}.png`);
-    fs.writeFileSync(savedPath, png);
+    savedPath = path.resolve(`curl-snap-${stamp}${ext}`);
+    fs.writeFileSync(savedPath, output);
     process.stderr.write(
       `${c.green('✔')} saved ${c.bold(savedPath)} ${c.dim('(clipboard unavailable)')}\n`
     );
   } else if (!savedPath) {
-    process.stderr.write(c.dim('   image not saved — pass --out to keep a file\n'));
+    process.stderr.write(c.dim(`   image not saved — pass --out to keep a file\n`));
   }
 
-  if (options.open && process.platform === 'darwin') {
-    execFile('open', [savedPath || clipSource], () => {});
+  if (options.open) {
+    openFile(savedPath || clipSource);
   }
 
   if (redaction.enabled) {
@@ -202,6 +232,19 @@ function headerValue(headers, name) {
   const lower = name.toLowerCase();
   const found = headers.find((h) => h.name.toLowerCase() === lower);
   return found ? found.value : undefined;
+}
+
+// Open a file with the platform's default app. Best-effort, fire-and-forget.
+function openFile(filePath) {
+  if (process.platform === 'darwin') {
+    execFile('open', [filePath], () => {});
+  } else if (process.platform === 'win32') {
+    execFile('cmd', ['/c', 'start', '', filePath], () => {});
+  } else if (/microsoft/i.test(os.release()) || process.env.WSL_DISTRO_NAME) {
+    execFile('sh', ['-c', `explorer.exe "$(wslpath -w ${JSON.stringify(filePath)})"`], () => {});
+  } else {
+    execFile('xdg-open', [filePath], () => {});
+  }
 }
 
 // Rebuild a curl command from the (already redacted) display values for the
