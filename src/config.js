@@ -136,7 +136,7 @@ export function resolveOptions(cliOpts, config) {
     themes: config.themes || undefined, // user-defined named themes
     background: bg.value,
     padding: pad.value,
-    window: pick('window', false),
+    window: pick('window', true),
     title: pick('title', undefined),
     format: fmt.value,
     formatExplicit: cliOpts.format !== undefined || config.format !== undefined,
@@ -188,7 +188,7 @@ export function exampleConfig() {
     themes: {}, // e.g. { mine: { background: '#101010', green: '#00ff88', … } }
     background: 'none', // none | a CSS color | a CSS gradient | auto
     padding: 28,
-    window: false,
+    window: true,
     title: null, // window-bar title (defaults to the request domain)
     format: 'png', // png | svg
     outDir: null,

@@ -453,6 +453,9 @@ export function buildTree(model) {
       ),
       // Body (sections).
       h('div', { display: 'flex', flexDirection: 'column', padding: '4px 22px 18px' }, sectionNodes),
+      // Bottom strip (status tone color) — sits above the footer so both color
+      // bars are framed inside the window, with the footer as the bottom chrome.
+      h('div', { display: 'flex', height: 6, width: '100%', backgroundColor: rColor }, []),
       // Footer.
       h(
         'div',
@@ -461,7 +464,6 @@ export function buildTree(model) {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '12px 22px',
-          borderTop: `1px solid ${theme.border}`,
           fontSize: 11,
           color: theme.textMuted,
           backgroundColor: theme.panel,
@@ -471,8 +473,6 @@ export function buildTree(model) {
           h('div', { display: 'flex' }, model.timestamp || ''),
         ]
       ),
-      // Bottom strip (status tone color).
-      h('div', { display: 'flex', height: 6, width: '100%', backgroundColor: rColor }, []),
     ]
   );
 

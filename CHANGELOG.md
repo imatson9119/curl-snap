@@ -6,6 +6,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- The window title bar is now **on by default** — pass `--no-window` to remove it.
+- The response status color bar now sits **above the footer**, so both color
+  bars are framed inside the card (the footer is the bottom edge).
+
 ## [2.1.0] - 2026-06-25
 
 ### Added
