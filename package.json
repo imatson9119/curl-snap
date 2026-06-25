@@ -1,6 +1,6 @@
 {
   "name": "curl-snap",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Turn a curl request into a polished PNG for PR evidence — runs the request and renders a clean card of the route, headers, request, and response.",
   "type": "module",
   "bin": {

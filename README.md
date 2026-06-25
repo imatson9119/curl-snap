@@ -171,8 +171,9 @@ curl-snap '<curl>' --background "linear-gradient(135deg,#1e3a8a,#7c3aed)"
   (`linear-gradient(...)`), or `auto` (a subtle backdrop derived from the active
   theme). Default is `none` (transparent).
 - `--padding <px>` sets the margin around the card (default 28).
-- The window title bar is on by default; `--no-window` removes it, and `--title`
-  overrides the default title (the request domain).
+- The title bar is on by default and shows the domain (or `--title`, which moves
+  the domain down to the header). `--no-window` makes a flat, full-bleed card —
+  no window dots, no padding, edge-to-edge.
 
 ## SVG output
 

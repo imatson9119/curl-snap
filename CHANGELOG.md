@@ -6,6 +6,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-06-25
+
+### Changed
+- The title bar is now **always present** (both windowed and not). It shows the
+  request domain by default, or your `--title` — in which case the domain moves
+  down to the header, so the domain is always visible up top.
+- `--no-window` now produces a **full-bleed** card: it drops the traffic-light
+  dots, zeroes the padding, and squares the corners so the content fills the
+  whole image (rather than just hiding the title bar).
+- Moved the method color bar back **above the header** (the status bar stays
+  above the footer).
+
 ## [2.2.0] - 2026-06-25
 
 ### Changed
@@ -85,7 +97,8 @@ Initial release.
 - Config files (global + project + `--config`) with `--init-config`,
   `--print-config`, and `--no-config`.
 
-[Unreleased]: https://github.com/imatson9119/curl-snap/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/imatson9119/curl-snap/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.3.0
 [2.2.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.2.0
 [2.1.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.1.0
 [2.0.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.0.0
