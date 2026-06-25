@@ -1,32 +1,58 @@
-// Build the Gruvbox-theme card HTML. Pure string templating — no framework.
+// Build the Gruvbox-theme card as a satori element tree. Pure data — no
+// framework, no HTML strings. satori consumes vnodes of the shape
+// `{ type, props: { style, children } }` with inline styles only (no CSS class
+// selectors, no <style> block, no pseudo-elements), so the whole card is
+// composed from the `h()` helper below.
 
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+// vnode constructor. `children` may be a string, a vnode, or an array of either.
+function h(type, style, children) {
+  return { type, props: { style, children } };
 }
 
-// Tiny JSON syntax colorizer: takes pretty-printed JSON text, returns HTML with
-// spans. Falls back to escaped plain text for non-JSON bodies.
-function colorizeJson(text) {
+// One logical line of a code block. satori only honors `\n` inside a single
+// string child — once text is split into colored spans (or once wordBreak is
+// applied), newlines collapse. So each source line gets its own flex row, and
+// wordBreak:'break-all' + flexWrap let long unbroken tokens wrap inside it.
+function codeLine(children) {
+  return h(
+    'div',
+    { display: 'flex', flexWrap: 'wrap', whiteSpace: 'pre-wrap', wordBreak: 'break-all' },
+    children
+  );
+}
+
+// Colorize one line of pretty-printed JSON into an array of <span> vnodes.
+function colorizeLine(text) {
   const tokenRe =
     /("(?:\\.|[^"\\])*"\s*:)|("(?:\\.|[^"\\])*")|(\b-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(\btrue\b|\bfalse\b)|(\bnull\b)/g;
-  let out = '';
+  const out = [];
   let last = 0;
   let m;
+  const push = (s, color) => {
+    if (s) out.push(h('span', color ? { color } : {}, s));
+  };
   while ((m = tokenRe.exec(text)) !== null) {
-    out += escapeHtml(text.slice(last, m.index));
-    if (m[1]) out += `<span class="j-key">${escapeHtml(m[1])}</span>`;
-    else if (m[2]) out += `<span class="j-str">${escapeHtml(m[2])}</span>`;
-    else if (m[3]) out += `<span class="j-num">${escapeHtml(m[3])}</span>`;
-    else if (m[4]) out += `<span class="j-bool">${escapeHtml(m[4])}</span>`;
-    else if (m[5]) out += `<span class="j-null">${escapeHtml(m[5])}</span>`;
+    push(text.slice(last, m.index));
+    if (m[1]) push(m[1], GRUVBOX.blue); // key
+    else if (m[2]) push(m[2], GRUVBOX.green); // string
+    else if (m[3]) push(m[3], GRUVBOX.purple); // number
+    else if (m[4]) push(m[4], GRUVBOX.orange); // bool
+    else if (m[5]) push(m[5], T.muted); // null
     last = tokenRe.lastIndex;
   }
-  out += escapeHtml(text.slice(last));
+  push(text.slice(last));
+  if (out.length === 0) out.push(h('span', {}, ' ')); // keep blank lines tall
   return out;
+}
+
+// Pretty-printed JSON → array of colored code lines.
+function colorizeJson(text) {
+  return String(text).split('\n').map((line) => codeLine(colorizeLine(line)));
+}
+
+// Plain (non-JSON) text → array of code lines. Empty lines keep their height.
+function plainCode(text) {
+  return String(text).split('\n').map((line) => codeLine(line === '' ? ' ' : line));
 }
 
 // Gruvbox bright accents.
@@ -40,6 +66,21 @@ const GRUVBOX = {
   orange: '#fe8019',
   gray: '#928374',
 };
+
+// Structural theme colors (formerly the :root CSS variables).
+const T = {
+  bg0: '#282828', // card body
+  bg0h: '#1d2021', // code blocks / pill text
+  bg1: '#32302f', // header / footer
+  line: '#3c3836',
+  line2: '#504945',
+  fg: '#ebdbb2',
+  fgDim: '#a89984',
+  muted: '#928374',
+  aqua: GRUVBOX.aqua,
+};
+
+const FONT = 'Fira Mono';
 
 // HTTP verb → accent color (drives the method pill and the top strip).
 function methodColor(method) {
@@ -73,6 +114,106 @@ function toneColor(tone) {
   }
 }
 
+function formatBytes(n) {
+  if (n == null) return '';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// A key/value table (request/response headers, query params).
+function kvBlock(items) {
+  return h(
+    'div',
+    { display: 'flex', flexDirection: 'column', gap: 7 },
+    items.map((it) =>
+      h('div', { display: 'flex', gap: 14, fontSize: 13, lineHeight: 1.5 }, [
+        // satori has no min-width; a fixed width matches the old min-width:150
+        // visually since keys are short labels.
+        h('span', { color: T.aqua, width: 150, flexShrink: 0, wordBreak: 'break-all' }, it.name),
+        h('span', { flexGrow: 1, flexShrink: 1, color: T.fg, wordBreak: 'break-all' }, it.value),
+      ])
+    )
+  );
+}
+
+// A monospace code block: a column of code lines (from colorizeJson/plainCode).
+function codeBlock(lines, extraStyle = {}) {
+  return h(
+    'div',
+    {
+      display: 'flex',
+      flexDirection: 'column',
+      fontSize: 13,
+      lineHeight: 1.6,
+      color: T.fg,
+      backgroundColor: T.bg0h,
+      border: `1px solid ${T.line}`,
+      borderRadius: 8,
+      padding: '14px 16px',
+      ...extraStyle,
+    },
+    lines
+  );
+}
+
+// A card section: title row (+ optional meta), optional sub-meta line, body.
+// `first` drops the top border (satori has no :first-child selector).
+function section(title, inner, { meta, subMeta, first } = {}) {
+  const children = [
+    h(
+      'div',
+      {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 11,
+      },
+      [
+        h(
+          'div',
+          {
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.18em',
+            color: T.fgDim,
+          },
+          // text-transform isn't supported; uppercase in JS.
+          String(title).toUpperCase()
+        ),
+        h('div', { display: 'flex', alignItems: 'center', gap: 10 }, meta || []),
+      ]
+    ),
+  ];
+  if (subMeta) {
+    children.push(
+      h(
+        'div',
+        {
+          marginTop: -4,
+          marginBottom: 10,
+          fontSize: 11.5,
+          color: T.muted,
+          letterSpacing: '0.02em',
+          wordBreak: 'break-all',
+        },
+        subMeta
+      )
+    );
+  }
+  children.push(inner);
+  return h(
+    'div',
+    {
+      display: 'flex',
+      flexDirection: 'column',
+      padding: '16px 0',
+      ...(first ? {} : { borderTop: `1px solid ${T.line}` }),
+    },
+    children
+  );
+}
+
 /**
  * @param {Object} model
  * @param {string} model.method
@@ -83,27 +224,9 @@ function toneColor(tone) {
  * @param {boolean} model.bodyIsJson
  * @param {Object} model.response   ResponseResult (body already redacted)
  * @param {number} model.width
- * @returns {string} full HTML document
+ * @returns {Object} satori element tree (root vnode)
  */
-function formatBytes(n) {
-  if (n == null) return '';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function kvBlock(items) {
-  return `<div class="kv">${items
-    .map(
-      (h) =>
-        `<div class="kv-row"><span class="kv-key">${escapeHtml(h.name)}</span><span class="kv-val">${escapeHtml(
-          h.value
-        )}</span></div>`
-    )
-    .join('')}</div>`;
-}
-
-export function buildHtml(model) {
+export function buildTree(model) {
   const { method, domain, path, headers, body, bodyIsJson, response, width } = model;
   const features = model.features || {};
 
@@ -111,219 +234,183 @@ export function buildHtml(model) {
   const mColor = methodColor(method);
   const rColor = toneColor(tone);
   const statusLabel = response.ok
-    ? `${response.status} ${escapeHtml(response.statusText || '')}`.trim()
+    ? `${response.status} ${response.statusText || ''}`.trim()
     : 'NO RESPONSE';
 
   const sections = [];
 
   // Command (high verbosity) — reconstructed, redacted curl.
   if (features.command && model.command) {
-    sections.push(section('Command', `<pre class="code cmd">${escapeHtml(model.command)}</pre>`));
+    sections.push((first) =>
+      section('Command', codeBlock(plainCode(model.command), { color: T.fgDim }), { first })
+    );
   }
 
   // Query parameters pulled from the URL.
   if (model.query && model.query.length) {
-    sections.push(section('Query Parameters', kvBlock(model.query)));
+    sections.push((first) => section('Query Parameters', kvBlock(model.query), { first }));
   }
 
   // Request headers (only those explicitly set).
   if (headers.length) {
-    sections.push(section('Request Headers', kvBlock(headers)));
+    sections.push((first) => section('Request Headers', kvBlock(headers), { first }));
   }
 
   // Request body.
   if (body !== undefined && body !== '') {
-    let sub = '';
+    let subMeta = '';
     if (features.requestMeta && model.requestMeta) {
       const bits = [formatBytes(model.requestMeta.bytes)];
-      if (model.requestMeta.contentType) bits.push(escapeHtml(model.requestMeta.contentType));
-      sub = bits.join(' · ');
+      if (model.requestMeta.contentType) bits.push(model.requestMeta.contentType);
+      subMeta = bits.join(' · ');
     }
-    sections.push(
-      section('Request', `<pre class="code">${bodyIsJson ? colorizeJson(body) : escapeHtml(body)}</pre>`, '', sub)
-    );
+    const inner = codeBlock(bodyIsJson ? colorizeJson(body) : plainCode(body));
+    sections.push((first) => section('Request', inner, { subMeta, first }));
   }
 
   // Response body.
-  let responseBodyHtml;
+  let responseInner;
   if (response.ok) {
-    responseBodyHtml = response.body
-      ? `<pre class="code">${response.isJson ? colorizeJson(response.body) : escapeHtml(response.body)}</pre>`
-      : `<div class="empty">(empty response body)</div>`;
+    responseInner = response.body
+      ? codeBlock(response.isJson ? colorizeJson(response.body) : plainCode(response.body))
+      : h('div', { display: 'flex', fontSize: 13, color: T.muted }, '(empty response body)');
   } else {
-    responseBodyHtml = `<pre class="code error-text">${escapeHtml(response.error || 'Request failed')}</pre>`;
+    responseInner = codeBlock(plainCode(response.error || 'Request failed'), { color: GRUVBOX.red });
   }
-  const responseMeta = `<span class="resp-status">${escapeHtml(statusLabel)}</span><span class="resp-time">${response.durationMs} ms</span>`;
+  const responseMeta = [
+    h(
+      'div',
+      {
+        fontSize: 12,
+        fontWeight: 700,
+        padding: '3px 9px',
+        borderRadius: 5,
+        letterSpacing: '0.03em',
+        color: T.bg0h,
+        backgroundColor: rColor,
+      },
+      statusLabel
+    ),
+    h('div', { fontSize: 12, color: T.muted }, `${response.durationMs} ms`),
+  ];
   let responseSub = '';
   if (features.responseMeta && response.ok) {
     const bits = [];
     if (response.bytes != null) bits.push(formatBytes(response.bytes));
-    if (response.contentType) bits.push(escapeHtml(response.contentType));
-    if (response.redirected && response.finalUrl) bits.push(`→ ${escapeHtml(response.finalUrl)}`);
+    if (response.contentType) bits.push(response.contentType);
+    if (response.redirected && response.finalUrl) bits.push(`→ ${response.finalUrl}`);
     responseSub = bits.join(' · ');
   }
-  sections.push(section('Response', responseBodyHtml, responseMeta, responseSub));
+  sections.push((first) =>
+    section('Response', responseInner, { meta: responseMeta, subMeta: responseSub, first })
+  );
 
   // Response headers (medium+).
   if (features.responseHeaders && model.responseHeaders && model.responseHeaders.length) {
-    sections.push(section('Response Headers', kvBlock(model.responseHeaders)));
+    sections.push((first) =>
+      section('Response Headers', kvBlock(model.responseHeaders), { first })
+    );
   }
 
-  return `<!doctype html>
-<html><head><meta charset="utf-8"><style>
-  :root {
-    --bg0: #282828;        /* card body */
-    --bg0h: #1d2021;       /* code blocks / pill text */
-    --bg1: #32302f;        /* header */
-    --line: #3c3836;
-    --line2: #504945;
-    --fg: #ebdbb2;
-    --fg-dim: #a89984;
-    --muted: #928374;
-    --aqua: ${GRUVBOX.aqua};
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background: transparent; }
-  body {
-    font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, "Cascadia Code", monospace;
-    color: var(--fg);
-    padding: 28px;
-    width: ${width + 56}px;
-  }
-  .card {
-    width: ${width}px;
-    background: var(--bg0);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-    --method-color: ${mColor};
-    --resp-color: ${rColor};
-  }
-  .strip { height: 6px; width: 100%; }
-  .strip-top { background: var(--method-color); }
-  .strip-bottom { background: var(--resp-color); }
-  .header {
-    padding: 18px 22px;
-    background: var(--bg1);
-    border-bottom: 1px solid var(--line);
-  }
-  .header-top { display: flex; align-items: center; gap: 12px; }
-  .method {
-    font-weight: 700;
-    font-size: 13px;
-    letter-spacing: 0.06em;
-    padding: 5px 11px;
-    border-radius: 6px;
-    color: var(--bg0h);
-    background: var(--method-color);
-    white-space: nowrap;
-  }
-  .path {
-    font-size: 19px;
-    font-weight: 600;
-    color: var(--fg);
-    word-break: break-all;
-    line-height: 1.3;
-  }
-  .domain {
-    margin-top: 7px;
-    margin-left: 2px;
-    font-size: 12.5px;
-    color: var(--muted);
-    letter-spacing: 0.02em;
-  }
-  .domain::before { content: "↗ "; opacity: 0.7; }
-  .body { padding: 4px 22px 18px; }
-  .section { padding: 16px 0; border-top: 1px solid var(--line); }
-  .section:first-child { border-top: none; }
-  .section-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 11px;
-  }
-  .section-title {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--fg-dim);
-  }
-  .section-meta { display: flex; align-items: center; gap: 10px; }
-  .sub-meta {
-    margin-top: -4px; margin-bottom: 10px;
-    font-size: 11.5px; color: var(--muted); letter-spacing: 0.02em;
-    word-break: break-all;
-  }
-  .cmd { color: var(--fg-dim); }
-  .resp-status {
-    font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 5px;
-    letter-spacing: 0.03em;
-    color: var(--bg0h);
-    background: var(--resp-color);
-  }
-  .resp-time { font-size: 12px; color: var(--muted); }
-  .kv { display: flex; flex-direction: column; gap: 7px; }
-  .kv-row { display: flex; gap: 14px; font-size: 13px; line-height: 1.5; }
-  .kv-key { color: var(--aqua); min-width: 150px; flex-shrink: 0; word-break: break-all; }
-  .kv-val { color: var(--fg); word-break: break-all; }
-  .code {
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--fg);
-    background: var(--bg0h);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 14px 16px;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-  }
-  .empty { font-size: 13px; color: var(--muted); font-style: italic; }
-  .error-text { color: ${GRUVBOX.red}; }
-  .j-key { color: ${GRUVBOX.blue}; }
-  .j-str { color: ${GRUVBOX.green}; }
-  .j-num { color: ${GRUVBOX.purple}; }
-  .j-bool { color: ${GRUVBOX.orange}; }
-  .j-null { color: var(--muted); }
-  .footer {
-    padding: 12px 22px;
-    border-top: 1px solid var(--line);
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 11px; color: var(--muted);
-    background: var(--bg1);
-  }
-  .brand { letter-spacing: 0.04em; }
-  .brand b { color: var(--fg-dim); font-weight: 700; }
-</style></head>
-<body>
-  <div class="card" id="card">
-    <div class="strip strip-top"></div>
-    <div class="header">
-      <div class="header-top">
-        <span class="method">${escapeHtml(method)}</span>
-        <span class="path">${escapeHtml(path)}</span>
-      </div>
-      <div class="domain">${escapeHtml(domain)}</div>
-    </div>
-    <div class="body">
-      ${sections.join('\n      ')}
-    </div>
-    <div class="footer">
-      <span class="brand"><b>curl-snap</b></span>
-      <span>${escapeHtml(model.timestamp || '')}</span>
-    </div>
-    <div class="strip strip-bottom"></div>
-  </div>
-</body></html>`;
-}
+  const sectionNodes = sections.map((make, i) => make(i === 0));
 
-function section(title, inner, meta = '', subMeta = '') {
-  return `<div class="section">
-    <div class="section-head">
-      <span class="section-title">${title}</span>
-      <span class="section-meta">${meta}</span>
-    </div>
-    ${subMeta ? `<div class="sub-meta">${subMeta}</div>` : ''}
-    ${inner}
-  </div>`;
+  const card = h(
+    'div',
+    {
+      display: 'flex',
+      flexDirection: 'column',
+      width,
+      backgroundColor: T.bg0,
+      border: `1px solid ${T.line}`,
+      borderRadius: 12,
+      overflow: 'hidden',
+      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
+    },
+    [
+      // Top strip (method color).
+      h('div', { display: 'flex', height: 6, width: '100%', backgroundColor: mColor }, []),
+      // Header.
+      h(
+        'div',
+        {
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '18px 22px',
+          backgroundColor: T.bg1,
+          borderBottom: `1px solid ${T.line}`,
+        },
+        [
+          h('div', { display: 'flex', alignItems: 'center', gap: 12 }, [
+            h(
+              'div',
+              {
+                fontWeight: 700,
+                fontSize: 13,
+                letterSpacing: '0.06em',
+                padding: '5px 11px',
+                borderRadius: 6,
+                color: T.bg0h,
+                backgroundColor: mColor,
+              },
+              method
+            ),
+            h(
+              'div',
+              { display: 'flex', flexShrink: 1, fontSize: 19, fontWeight: 500, color: T.fg, lineHeight: 1.3, wordBreak: 'break-all' },
+              path
+            ),
+          ]),
+          h(
+            'div',
+            {
+              display: 'flex',
+              marginTop: 7,
+              marginLeft: 2,
+              fontSize: 12.5,
+              color: T.muted,
+              letterSpacing: '0.02em',
+            },
+            // The old ::before { content:"↗ " } becomes a literal span.
+            [h('span', { opacity: 0.7 }, '↗ '), h('span', {}, domain)]
+          ),
+        ]
+      ),
+      // Body (sections).
+      h('div', { display: 'flex', flexDirection: 'column', padding: '4px 22px 18px' }, sectionNodes),
+      // Footer.
+      h(
+        'div',
+        {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 22px',
+          borderTop: `1px solid ${T.line}`,
+          fontSize: 11,
+          color: T.muted,
+          backgroundColor: T.bg1,
+        },
+        [
+          h('div', { display: 'flex', letterSpacing: '0.04em', color: T.fgDim, fontWeight: 700 }, 'curl-snap'),
+          h('div', { display: 'flex' }, model.timestamp || ''),
+        ]
+      ),
+      // Bottom strip (status tone color).
+      h('div', { display: 'flex', height: 6, width: '100%', backgroundColor: rColor }, []),
+    ]
+  );
+
+  // Root: 28px transparent padding so the drop shadow has room (replaces the
+  // old measure-and-clip step). No background → transparent margin.
+  return h(
+    'div',
+    {
+      display: 'flex',
+      width: width + 56,
+      padding: 28,
+      fontFamily: FONT,
+      color: T.fg,
+    },
+    card
+  );
 }

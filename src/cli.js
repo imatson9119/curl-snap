@@ -49,7 +49,6 @@ function statusColor(status, ok) {
  * @param {string[]} [options.reveal]
  * @param {boolean} [options.open=false]
  * @param {number} [options.width=760]
- * @param {string} [options.chrome]
  * @param {string} [options.verbosity='low']
  * @param {Object} [options.features]   {responseHeaders, requestMeta, responseMeta, command}
  * @param {string} [options.outDir]
@@ -116,7 +115,7 @@ export async function run(options) {
     timestamp: human,
   };
 
-  const png = await renderPng(model, { chromePath: options.chrome });
+  const png = await renderPng(model);
 
   // Decide where the PNG lands. By default we don't drop a file in the cwd — we
   // just copy to the clipboard. A file is written when the user asks for one

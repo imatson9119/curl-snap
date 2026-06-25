@@ -43,10 +43,9 @@ npm install
 npm link   # puts `curl-snap` on your PATH
 ```
 
-You'll also need **Google Chrome** (or Chromium / Edge / Brave) installed —
-curl-snap renders the card by screenshotting it with a headless browser. It does
-*not* download one; it borrows the one you already have. Clipboard auto-copy
-works out of the box on macOS, and on Linux if you have `xclip`.
+No browser required — curl-snap renders the card entirely in-process (the fonts
+are bundled), so there's nothing else to install. Clipboard auto-copy works out
+of the box on macOS, and on Linux if you have `xclip`.
 
 ## Quick start
 
@@ -82,7 +81,6 @@ status/timing summary in the terminal — no file is written. Pass `--out` (or
 | `--reveal a,b` | Header/JSON keys to force-show |
 | `--open` / `--no-open` | Open (or don't) the PNG after making it |
 | `--width <px>` | Card width (default 760) |
-| `--chrome <path>` | Point at a specific Chrome/Chromium binary |
 | `-h, --help` | Help |
 | `-V, --version` | Version |
 
@@ -183,7 +181,7 @@ the eyes and I like it.
 1. Parse the curl command into method / URL / headers / body.
 2. Run it with Node's built-in `fetch` and capture the status, timing, and body.
 3. Redact anything sensitive (for display only).
-4. Render an HTML card and screenshot it with headless Chrome via `puppeteer-core`.
+4. Render the card to SVG with `satori` and rasterize it to PNG with `resvg` — no browser required.
 5. Copy the PNG to the clipboard (and save it to disk if you passed `--out`).
 
 ## Limitations

@@ -1,75 +1,46 @@
-// Render the card HTML to a PNG buffer by screenshotting it with the system
-// Chrome via puppeteer-core (no bundled browser download).
+// Render the card to a PNG buffer with no browser: satori turns the element
+// tree into an SVG, then @resvg/resvg-js rasterizes it. Fonts are bundled, so
+// output is deterministic and there's nothing to install.
 
 import fs from 'node:fs';
-import puppeteer from 'puppeteer-core';
-import { buildHtml } from './template.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import satori from 'satori';
+import { Resvg } from '@resvg/resvg-js';
+import { buildTree } from './template.js';
 
-const CHROME_CANDIDATES = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-  '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-  // Linux fallbacks
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-  '/usr/bin/chromium-browser',
+// Resolve the vendored fonts relative to this module (not cwd), so it works the
+// same whether installed locally, globally (npm i -g), via npx, or in the
+// Homebrew libexec. Same import.meta.url pattern bin/curl-snap.js uses.
+const here = path.dirname(fileURLToPath(import.meta.url));
+const fontDir = path.join(here, '..', 'assets', 'fonts');
+
+// Read once at module load (~180KB each) and reuse across calls.
+const fonts = [
+  { name: 'Fira Mono', weight: 400, style: 'normal', data: fs.readFileSync(path.join(fontDir, 'FiraMono-Regular.ttf')) },
+  { name: 'Fira Mono', weight: 500, style: 'normal', data: fs.readFileSync(path.join(fontDir, 'FiraMono-Medium.ttf')) },
+  { name: 'Fira Mono', weight: 700, style: 'normal', data: fs.readFileSync(path.join(fontDir, 'FiraMono-Bold.ttf')) },
 ];
 
-export function resolveChromePath(override) {
-  const candidates = [override, process.env.CURL_SNAP_CHROME, ...CHROME_CANDIDATES].filter(Boolean);
-  for (const p of candidates) {
-    if (fs.existsSync(p)) return p;
-  }
-  throw new Error(
-    'Could not find a Chrome/Chromium executable. Pass --chrome <path> or set CURL_SNAP_CHROME.'
-  );
-}
-
 /**
- * @param {Object} model       see template.buildHtml
- * @param {Object} opts
- * @param {string} [opts.chromePath]
+ * @param {Object} model   see template.buildTree
  * @returns {Promise<Buffer>}
  */
-export async function renderPng(model, opts = {}) {
-  const executablePath = resolveChromePath(opts.chromePath);
-  const html = buildHtml(model);
-
-  const browser = await puppeteer.launch({
-    executablePath,
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--force-color-profile=srgb'],
+export async function renderPng(model) {
+  // satori auto-computes the height from the content when only width is given.
+  const svg = await satori(buildTree(model), {
+    width: model.width + 56,
+    fonts,
   });
-  try {
-    const page = await browser.newPage();
-    await page.setViewport({ width: model.width + 56, height: 600, deviceScaleFactor: 2 });
-    await page.setContent(html, { waitUntil: 'networkidle0' });
 
-    // Measure the card so we can clip tightly, keeping the body's 28px padding
-    // as a transparent margin (so the drop shadow isn't cut off) but dropping
-    // any empty space below.
-    const box = await page.$eval('#card', (el) => {
-      const r = el.getBoundingClientRect();
-      return { x: r.x, y: r.y, width: r.width, height: r.height };
-    });
-    const pad = 28;
-    const clip = {
-      x: Math.max(0, box.x - pad),
-      y: Math.max(0, box.y - pad),
-      width: box.width + pad * 2,
-      height: box.height + pad * 2,
-    };
-    await page.setViewport({
-      width: Math.ceil(clip.x + clip.width),
-      height: Math.ceil(clip.y + clip.height),
-      deviceScaleFactor: 2,
-    });
+  const resvg = new Resvg(svg, {
+    // deviceScaleFactor: 2 equivalent — render at 2x for crisp output.
+    fitTo: { mode: 'zoom', value: 2 },
+    // Transparent background so the card's drop shadow keeps its alpha.
+    background: 'rgba(0, 0, 0, 0)',
+    // Everything we need is embedded; don't touch system fonts.
+    font: { loadSystemFonts: false },
+  });
 
-    const buffer = await page.screenshot({ type: 'png', clip, omitBackground: true });
-    return buffer;
-  } finally {
-    await browser.close();
-  }
+  return resvg.render().asPng();
 }
