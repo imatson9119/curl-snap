@@ -1,7 +1,7 @@
 {
   "name": "curl-snap",
   "version": "2.4.0",
-  "description": "Turn a curl request into a polished PNG for PR evidence — runs the request and renders a clean card of the route, headers, request, and response.",
+  "description": "Run a curl command and render a clean, shareable card of the request and response — themed, redacted, and ready to drop into a PR, doc, or tweet.",
   "type": "module",
   "bin": {
     "curl-snap": "bin/curl-snap.js"
