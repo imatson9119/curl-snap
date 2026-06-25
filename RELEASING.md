@@ -4,23 +4,32 @@ curl-snap ships to two places: **npm** (the primary channel) and the **Homebrew
 tap** (a thin wrapper that installs the npm package). npm is the source of truth;
 the formula just points at the published tarball.
 
+Most of the release is automated: a **version bump on `main` is the trigger**.
+The [`release` workflow](.github/workflows/release.yml) watches for a change to
+the `version` field in `package.json` and then tags `v<version>`, publishes to
+npm, and cuts a GitHub Release with notes from the CHANGELOG. The only manual
+step left is bumping the Homebrew tap (a separate repo).
+
+> One-time setup: add an npm automation token as the repo secret `NPM_TOKEN`
+> (Settings → Secrets and variables → Actions). `GITHUB_TOKEN` is provided
+> automatically.
+
 ## 1. Cut the version
 
 ```sh
-# bump "version" in package.json, add a CHANGELOG entry, commit
-npm version <patch|minor|major>   # tags the commit too
+# bump "version" in package.json, move the CHANGELOG "Unreleased" notes under a
+# new "## [x.y.z] - <date>" heading, commit
+npm version <patch|minor|major> --no-git-tag-version
+git commit -am "Release vX.Y.Z"
 ```
 
-## 2. Publish to npm
+Open a PR and merge it to `main` (or push to `main` directly). On merge, the
+`release` workflow tags the commit, runs `npm publish`, and creates the GitHub
+Release — nothing else to do here.
 
-```sh
-npm login        # first time only
-npm publish      # runs against the "files" allowlist in package.json
-```
+Sanity check it once published: `npm install -g curl-snap && curl-snap --version`.
 
-Sanity check it: `npm install -g curl-snap && curl-snap --version`.
-
-## 3. Update the Homebrew formula
+## 2. Update the Homebrew formula
 
 Get the sha256 of the published tarball:
 
@@ -43,12 +52,16 @@ brew install curl-snap
 curl-snap --version
 ```
 
-## 4. Tag the GitHub release
+The tap is the one repo the workflow can't reach, so this stays manual.
 
-`npm version` already created the git tag; push it and cut a release:
+## Manual fallback
+
+If the workflow is unavailable (or you need to re-cut a release), the steps it
+automates are:
 
 ```sh
-git push && git push --tags
+VERSION=$(node -p "require('./package.json').version")
+npm publish --access public
 gh release create "v${VERSION}" --title "v${VERSION}" --notes-from-tag
 ```
 

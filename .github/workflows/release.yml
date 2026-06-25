@@ -1,0 +1,115 @@
+# Auto-release on a version bump.
+#
+# When a commit lands on main that changes the "version" in package.json, this
+# tags v<version>, publishes the package to npm, and cuts a GitHub Release with
+# notes pulled from CHANGELOG.md. Bumping the version (e.g. `npm version patch`)
+# is the single trigger — no other ceremony. Merges that don't touch the version
+# are a no-op.
+#
+# Requires repo secret NPM_TOKEN (an npm automation token). The Homebrew tap is
+# still updated by hand — see RELEASING.md.
+
+name: release
+
+on:
+  push:
+    branches: [main]
+
+# Never run two releases at once.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # create tags + GitHub Releases
+  id-token: write   # npm provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # need the previous commit to diff the version
+
+      # Decide whether this push bumped the version, and whether that tag is new.
+      - name: Check for a version bump
+        id: check
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          git show HEAD~1:package.json > /tmp/prev-package.json 2>/dev/null || echo '{}' > /tmp/prev-package.json
+          PREVIOUS=$(node -p "require('/tmp/prev-package.json').version || ''")
+          echo "current=$CURRENT"  >> "$GITHUB_OUTPUT"
+          echo "Current version:  $CURRENT"
+          echo "Previous version: $PREVIOUS"
+          if [ "$CURRENT" = "$PREVIOUS" ]; then
+            echo "No version change — nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          elif git rev-parse "v$CURRENT" >/dev/null 2>&1; then
+            echo "Tag v$CURRENT already exists — skipping."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node
+        if: steps.check.outputs.release == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        if: steps.check.outputs.release == 'true'
+        run: npm ci
+
+      # Catch the obvious breakage before we publish: the CLI fails to load
+      # (e.g. a bad import or a missing bundled font), or the fonts didn't make
+      # it into the tarball because the package.json "files" list regressed.
+      - name: Verify package
+        if: steps.check.outputs.release == 'true'
+        run: |
+          node bin/curl-snap.js --version
+          npm pack --dry-run 2>&1 | grep -q 'assets/fonts/FiraMono-Regular.ttf' \
+            || { echo '::error::bundled fonts missing from the npm package'; exit 1; }
+
+      # Publish first: if npm rejects the version, we stop before tagging so a
+      # failed run leaves no dangling tag or release.
+      - name: Publish to npm
+        if: steps.check.outputs.release == 'true'
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Pull the matching CHANGELOG section for the release body; fall back to
+      # auto-generated notes if there's no entry for this version.
+      - name: Extract changelog notes
+        if: steps.check.outputs.release == 'true'
+        id: notes
+        run: |
+          VERSION="${{ steps.check.outputs.current }}"
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { flag=1; next }
+            flag && /^## \[/         { exit }
+            flag                     { print }
+          ' CHANGELOG.md > /tmp/raw-notes.md
+          # Trim leading/trailing blank lines, keep the ones between sections.
+          awk 'NF {p=1} p' /tmp/raw-notes.md | tac | awk 'NF {p=1} p' | tac > /tmp/release-notes.md
+          if [ -s /tmp/release-notes.md ]; then
+            echo "have_notes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have_notes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # gh release create also creates the tag v<version> at this commit.
+      - name: Create GitHub Release
+        if: steps.check.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.check.outputs.current }}"
+          if [ "${{ steps.notes.outputs.have_notes }}" = "true" ]; then
+            gh release create "v$VERSION" --title "v$VERSION" --notes-file /tmp/release-notes.md
+          else
+            gh release create "v$VERSION" --title "v$VERSION" --generate-notes
+          fi
