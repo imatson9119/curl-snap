@@ -44,8 +44,8 @@ export async function renderSvg(model) {
  */
 export async function renderPng(model) {
   const resvg = new Resvg(await buildSvg(model), {
-    // deviceScaleFactor: 2 equivalent — render at 2x for crisp output.
-    fitTo: { mode: 'zoom', value: 2 },
+    // deviceScaleFactor equivalent — render at Nx for crisp output (default 2).
+    fitTo: { mode: 'zoom', value: model.scale || 2 },
     // Transparent background so the card's drop shadow keeps its alpha.
     background: 'rgba(0, 0, 0, 0)',
     // Everything we need is embedded; don't touch system fonts.

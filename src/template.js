@@ -56,9 +56,70 @@ function colorizeJson(text, theme) {
   return String(text).split('\n').map((line) => codeLine(colorizeLine(line, theme)));
 }
 
+// Colorize one line of XML/HTML: tag names, attribute names, quoted strings,
+// comments/brackets. Spans always concatenate back to the original line.
+function colorizeXmlLine(text, theme) {
+  const tokenRe =
+    /(<!--[\s\S]*?-->)|(<\/?)([\w:.-]+)|([\w:.-]+)(=)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\/?>)/g;
+  const out = [];
+  let last = 0;
+  let m;
+  const push = (s, color) => {
+    if (s) out.push(h('span', color ? { color } : {}, s));
+  };
+  while ((m = tokenRe.exec(text)) !== null) {
+    push(text.slice(last, m.index));
+    if (m[1]) push(m[1], theme.textMuted); // comment
+    else if (m[2]) { push(m[2], theme.textMuted); push(m[3], theme.blue); } // </ or < + tag name
+    else if (m[4]) { push(m[4], theme.cyan); push(m[5], theme.textMuted); } // attr name + '='
+    else if (m[6]) push(m[6], theme.green); // quoted value
+    else if (m[7]) push(m[7], theme.textMuted); // > or />
+    last = tokenRe.lastIndex;
+  }
+  push(text.slice(last));
+  if (out.length === 0) out.push(h('span', {}, ' '));
+  return out;
+}
+function colorizeXml(text, theme) {
+  return String(text).split('\n').map((line) => codeLine(colorizeXmlLine(line, theme)));
+}
+
+// Colorize form-urlencoded (a=b&c=d): keys cyan, values green, '&' muted.
+function colorizeFormLine(text, theme) {
+  const out = [];
+  const pairs = String(text).split('&');
+  pairs.forEach((p, i) => {
+    const eq = p.indexOf('=');
+    if (eq === -1) {
+      if (p) out.push(h('span', {}, p));
+    } else {
+      out.push(h('span', { color: theme.cyan }, p.slice(0, eq + 1)));
+      const v = p.slice(eq + 1);
+      if (v) out.push(h('span', { color: theme.green }, v));
+    }
+    if (i < pairs.length - 1) out.push(h('span', { color: theme.textMuted }, '&'));
+  });
+  if (out.length === 0) out.push(h('span', {}, ' '));
+  return out;
+}
+function colorizeForm(text, theme) {
+  return String(text).split('\n').map((line) => codeLine(colorizeFormLine(line, theme)));
+}
+
 // Plain (non-JSON) text → array of code lines. Empty lines keep their height.
 function plainCode(text) {
   return String(text).split('\n').map((line) => codeLine(line === '' ? ' ' : line));
+}
+
+// Map a body kind to the right colorizer (defaults to plain).
+function pickColorizer(kind, text, theme) {
+  switch (kind) {
+    case 'json': return colorizeJson(text, theme);
+    case 'xml':
+    case 'html': return colorizeXml(text, theme);
+    case 'form': return colorizeForm(text, theme);
+    default: return plainCode(text);
+  }
 }
 
 const FONT = 'Fira Mono';
@@ -347,15 +408,17 @@ export function buildTree(model) {
       if (model.requestMeta.contentType) bits.push(model.requestMeta.contentType);
       subMeta = bits.join(' · ');
     }
-    const inner = codeBlock(bodyIsJson ? colorizeJson(body, theme) : plainCode(body), theme);
+    const reqKind = model.bodyKind || (bodyIsJson ? 'json' : 'plain');
+    const inner = codeBlock(pickColorizer(reqKind, body, theme), theme);
     sections.push((first) => section('Request', inner, { subMeta, first }, theme));
   }
 
   // Response body.
   let responseInner;
   if (response.ok) {
+    const respKind = model.responseBodyKind || (response.isJson ? 'json' : 'plain');
     responseInner = response.body
-      ? codeBlock(response.isJson ? colorizeJson(response.body, theme) : plainCode(response.body), theme)
+      ? codeBlock(pickColorizer(respKind, response.body, theme), theme)
       : h('div', { display: 'flex', fontSize: 13, color: theme.textMuted }, '(empty response body)');
   } else {
     responseInner = codeBlock(plainCode(response.error || 'Request failed'), theme, { color: theme.red });
@@ -482,7 +545,13 @@ export function buildTree(model) {
           backgroundColor: theme.panel,
         },
         [
-          h('div', { display: 'flex', letterSpacing: '0.04em', color: theme.textDim, fontWeight: 700 }, 'curl-snap'),
+          // Brand label: model.brand === false hides it (keep an empty span so
+          // the timestamp stays right-aligned); else custom text or 'curl-snap'.
+          h(
+            'div',
+            { display: 'flex', letterSpacing: '0.04em', color: theme.textDim, fontWeight: 700 },
+            model.brand === false ? '' : String(model.brand || 'curl-snap')
+          ),
           h('div', { display: 'flex' }, model.timestamp || ''),
         ]
       ),

@@ -6,6 +6,31 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-06-25
+
+### Added
+- **Non-JSON highlighting:** XML/HTML and form-encoded bodies are now colorized
+  (not just JSON), detected from content-type or body shape.
+- **Curl fidelity:** `-F`/`--form` multipart (including `@file` uploads) now
+  renders and sends, and `-m`/`--max-time` (and `--connect-timeout`) are actually
+  enforced via an abort timeout (previously parsed and ignored).
+- **Big responses:** `--max-body-lines <n>` caps body lines (`… N more lines`)
+  and `--max-body-depth <n>` collapses deep JSON to `{ … }`. A terminal tip
+  (with the line count) suggests them when a body is long.
+- **`--upload`:** post the image to a host (default 0x0.st) and print a link. It
+  previews the card's contents and asks to confirm before every upload (public,
+  best-effort redaction); refuses in non-interactive shells without
+  `--dangerously-skip-upload-confirm`.
+- **`--scale 1|2|3`** for the PNG zoom factor (default 2).
+- **`--brand <str>` / `--no-brand`** to customize or hide the footer label.
+- **Five more themes:** `github-dark`, `monokai`, `rose-pine`, `everforest`,
+  `ayu-dark` (14 total).
+
+### Changed
+- Redaction now also masks **token-shaped values** (JWTs and `Bearer`/`Basic`
+  tokens) even when the key name isn't obviously sensitive. `--reveal` still
+  force-shows.
+
 ## [2.3.0] - 2026-06-25
 
 ### Changed
@@ -97,7 +122,8 @@ Initial release.
 - Config files (global + project + `--config`) with `--init-config`,
   `--print-config`, and `--no-config`.
 
-[Unreleased]: https://github.com/imatson9119/curl-snap/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/imatson9119/curl-snap/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.4.0
 [2.3.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.3.0
 [2.2.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.2.0
 [2.1.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.1.0

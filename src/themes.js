@@ -90,9 +90,45 @@ const catppuccinLatte = {
   purple: '#8839ef', cyan: '#179299', orange: '#fe640b',
 };
 
+const githubDark = {
+  background: '#0d1117', panel: '#161b22', codeBackground: '#010409', border: '#30363d',
+  text: '#e6edf3', textDim: '#c9d1d9', textMuted: '#8b949e', accentText: '#0d1117',
+  red: '#ff7b72', green: '#3fb950', yellow: '#d29922', blue: '#58a6ff',
+  purple: '#bc8cff', cyan: '#39c5cf', orange: '#ffa657',
+};
+
+const monokai = {
+  background: '#272822', panel: '#2d2e27', codeBackground: '#1e1f1c', border: '#3e3d32',
+  text: '#f8f8f2', textDim: '#cfcfc2', textMuted: '#75715e', accentText: '#272822',
+  red: '#f92672', green: '#a6e22e', yellow: '#e6db74', blue: '#66d9ef',
+  purple: '#ae81ff', cyan: '#a1efe4', orange: '#fd971f',
+};
+
+const rosePine = {
+  background: '#191724', panel: '#1f1d2e', codeBackground: '#16141f', border: '#26233a',
+  text: '#e0def4', textDim: '#908caa', textMuted: '#6e6a86', accentText: '#191724',
+  red: '#eb6f92', green: '#31748f', yellow: '#f6c177', blue: '#9ccfd8',
+  purple: '#c4a7e7', cyan: '#ebbcba', orange: '#ea9a97',
+};
+
+const everforest = { // Dark, Medium
+  background: '#2d353b', panel: '#343f44', codeBackground: '#272e33', border: '#4f585e',
+  text: '#d3c6aa', textDim: '#9da9a0', textMuted: '#859289', accentText: '#2d353b',
+  red: '#e67e80', green: '#a7c080', yellow: '#dbbc7f', blue: '#7fbbb3',
+  purple: '#d699b6', cyan: '#83c092', orange: '#e69875',
+};
+
+const ayuDark = {
+  background: '#0b0e14', panel: '#0f131a', codeBackground: '#00010a', border: '#1c212b',
+  text: '#bfbdb6', textDim: '#acb6bf', textMuted: '#565b66', accentText: '#0b0e14',
+  red: '#f07178', green: '#aad94c', yellow: '#ffb454', blue: '#59c2ff',
+  purple: '#d2a6ff', cyan: '#95e6cb', orange: '#ff8f40',
+};
+
 export const PRESETS = {
   // dark
   gruvbox, dracula, nord, 'one-dark': oneDark, catppuccin, 'tokyo-night': tokyoNight,
+  'github-dark': githubDark, monokai, 'rose-pine': rosePine, everforest, 'ayu-dark': ayuDark,
   // light
   'github-light': githubLight, 'solarized-light': solarizedLight, 'catppuccin-latte': catppuccinLatte,
 };

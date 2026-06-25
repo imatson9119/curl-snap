@@ -22,10 +22,13 @@ ES modules.
 bin/curl-snap.js     CLI entry: parse argv, gather the curl, resolve config
 src/parse-curl.js    tokenize + parse a curl command into a RequestSpec
 src/execute.js       run the request via fetch, capture status/timing/body
-src/redact.js        mask sensitive headers / JSON keys / query params
+src/redact.js        mask sensitive headers / keys / token-shaped values
 src/render.js        render the card to PNG with satori + resvg
-src/template.js      the card as a satori element tree + JSON colorizer
+src/template.js      the card as a satori element tree + JSON/XML/form colorizers
 src/themes.js        color theme presets + resolution (the 15-slot palette)
+src/clipboard.js     copy the image/SVG to the clipboard (cross-platform)
+src/upload.js        upload the image to a host (0x0.st) and return a link
+src/confirm.js       the upload preview + confirmation prompt
 src/config.js        config file loading + verbosity → feature resolution
 src/cli.js           glue: parse → execute → redact → render → save → copy
 ```
