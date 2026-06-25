@@ -64,9 +64,18 @@ function plainCode(text) {
 const FONT = 'Fira Mono';
 const DEFAULT_PADDING = 28;
 
+// Windowed (default) draws the mac-style chrome (traffic-light dots) and floats
+// the card on a padded, rounded, shadowed canvas. --no-window drops the dots,
+// zeroes the padding, and squares the corners so the content fills the image.
+function isWindowed(model) {
+  return model.window !== false;
+}
+
 // Transparent margin around the card (where the drop shadow lives). Validated in
 // config.js; this is a last-resort guard so the tree never gets NaN/negative.
+// --no-window forces it to 0 (full-bleed).
 export function paddingOf(model) {
+  if (!isWindowed(model)) return 0;
   const p = Number(model.padding);
   return Number.isFinite(p) && p >= 0 ? p : DEFAULT_PADDING;
 }
@@ -103,8 +112,33 @@ function truncateTitle(s) {
 }
 
 // An optional window title bar (traffic-light dots + centered title). `title` is
-// pre-truncated. The card's borderRadius + overflow:hidden round the top corners.
-function windowBar(title, theme) {
+// pre-truncated. The title bar is always present; `dots` (windowed mode) adds the
+// traffic-light cluster and a matching right spacer so the title stays centered.
+function windowBar(title, theme, dots) {
+  const titleNode = h(
+    'div',
+    {
+      display: 'flex',
+      flexGrow: 1,
+      justifyContent: 'center',
+      fontSize: 12.5,
+      color: theme.textMuted,
+      letterSpacing: '0.02em',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+    },
+    title
+  );
+  const children = dots
+    ? [
+        h('div', { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }, [
+          trafficDot('#ff5f56'), trafficDot('#ffbd2e'), trafficDot('#27c93f'),
+        ]),
+        titleNode,
+        // Right spacer matching the dot cluster so the title stays centered.
+        h('div', { display: 'flex', width: 52, flexShrink: 0 }, []),
+      ]
+    : [titleNode];
   return h(
     'div',
     {
@@ -116,27 +150,7 @@ function windowBar(title, theme) {
       backgroundColor: theme.panel,
       borderBottom: `1px solid ${theme.border}`,
     },
-    [
-      h('div', { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }, [
-        trafficDot('#ff5f56'), trafficDot('#ffbd2e'), trafficDot('#27c93f'),
-      ]),
-      h(
-        'div',
-        {
-          display: 'flex',
-          flexGrow: 1,
-          justifyContent: 'center',
-          fontSize: 12.5,
-          color: theme.textMuted,
-          letterSpacing: '0.02em',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-        },
-        title
-      ),
-      // Right spacer matching the dot cluster so the title stays optically centered.
-      h('div', { display: 'flex', width: 52, flexShrink: 0 }, []),
-    ]
+    children
   );
 }
 
@@ -291,14 +305,13 @@ export function buildTree(model) {
   // cli.js always supplies a resolved theme; fall back so direct callers/tests
   // (and any future entry points) still render the default.
   const theme = model.theme || resolveTheme({}).theme;
+  const windowed = isWindowed(model);
   const padding = paddingOf(model);
   const bgStyle = rootBackgroundStyle(model.background, theme);
-  const windowTitle = model.window
-    ? truncateTitle(model.title != null ? model.title : domain)
-    : null;
-  // When the window bar is showing the domain (window on, no explicit title),
-  // drop the domain row under the method so it isn't duplicated.
-  const showDomain = !(model.window && model.title == null);
+  // The title bar is always present (both modes); it shows the domain by default,
+  // or an explicit --title. When a title is given the domain moves to the header.
+  const windowTitle = truncateTitle(model.title != null ? model.title : domain);
+  const showDomain = model.title != null;
 
   const tone = statusTone(response.ok ? response.status : undefined);
   const mColor = methodColor(method, theme);
@@ -392,13 +405,15 @@ export function buildTree(model) {
       width,
       backgroundColor: theme.background,
       border: `1px solid ${theme.border}`,
-      borderRadius: 12,
+      borderRadius: windowed ? 12 : 0,
       overflow: 'hidden',
-      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
+      ...(windowed ? { boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)' } : {}),
     },
     [
-      // Optional window chrome (title bar).
-      ...(windowTitle !== null ? [windowBar(windowTitle, theme)] : []),
+      // Title bar (always present); dots only in windowed mode.
+      windowBar(windowTitle, theme, windowed),
+      // Top strip (method color) — above the header.
+      h('div', { display: 'flex', height: 6, width: '100%', backgroundColor: mColor }, []),
       // Header.
       h(
         'div',
@@ -407,6 +422,7 @@ export function buildTree(model) {
           flexDirection: 'column',
           padding: '18px 22px',
           backgroundColor: theme.panel,
+          borderBottom: `1px solid ${theme.border}`,
         },
         [
           h('div', { display: 'flex', alignItems: 'center', gap: 12 }, [
@@ -448,13 +464,10 @@ export function buildTree(model) {
             : []),
         ]
       ),
-      // Top strip (method color) — under the header, bracketing the body with
-      // the status strip below it.
-      h('div', { display: 'flex', height: 6, width: '100%', backgroundColor: mColor }, []),
       // Body (sections).
       h('div', { display: 'flex', flexDirection: 'column', padding: '4px 22px 18px' }, sectionNodes),
-      // Bottom strip (status tone color) — sits above the footer so both color
-      // bars are framed inside the window, with the footer as the bottom chrome.
+      // Bottom strip (status tone color) — above the footer, so the footer is the
+      // bottom chrome edge and both color bars sit inside the card.
       h('div', { display: 'flex', height: 6, width: '100%', backgroundColor: rColor }, []),
       // Footer.
       h(
