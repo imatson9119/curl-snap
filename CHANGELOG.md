@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Rendering no longer requires a browser. The card is now rasterized in-process
+  with `satori` (→ SVG) and `@resvg/resvg-js` (→ PNG) instead of screenshotting
+  HTML with headless Chrome via `puppeteer-core`. Fira Mono is bundled, so output
+  is deterministic and there's nothing external to install.
+
+### Removed
+- The `--chrome` flag and `CURL_SNAP_CHROME` env var (no browser to point at).
+
 ## [1.1.0] - 2026-06-23
 
 ### Added
@@ -34,5 +45,6 @@ Initial release.
 - Config files (global + project + `--config`) with `--init-config`,
   `--print-config`, and `--no-config`.
 
+[Unreleased]: https://github.com/imatson9119/curl-snap/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/imatson9119/curl-snap/releases/tag/v1.1.0
 [1.0.0]: https://github.com/imatson9119/curl-snap/releases/tag/v1.0.0

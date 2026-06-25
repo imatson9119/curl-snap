@@ -116,7 +116,6 @@ export function resolveOptions(cliOpts, config) {
     reveal: [...(config.reveal || []), ...(cliOpts.reveal || [])],
     open: pick('open', false),
     width: pick('width', 760),
-    chrome: pick('chrome', undefined),
     verbosity,
     features,
   };

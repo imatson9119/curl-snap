@@ -12,8 +12,9 @@ npm install
 node bin/curl-snap.js "curl https://httpbin.org/get"   # smoke test
 ```
 
-You'll need Node 18+ and a Chrome/Chromium/Edge/Brave install for rendering.
-There's no build step — it's plain ES modules.
+You'll need Node 18+. Rendering is fully in-process (satori + resvg, with fonts
+bundled), so there's no browser to install. There's no build step — it's plain
+ES modules.
 
 ## Where things live
 
@@ -22,8 +23,8 @@ bin/curl-snap.js     CLI entry: parse argv, gather the curl, resolve config
 src/parse-curl.js    tokenize + parse a curl command into a RequestSpec
 src/execute.js       run the request via fetch, capture status/timing/body
 src/redact.js        mask sensitive headers / JSON keys / query params
-src/render.js        screenshot the card with puppeteer-core
-src/template.js      the Gruvbox card HTML/CSS + JSON colorizer
+src/render.js        render the card to PNG with satori + resvg
+src/template.js      the Gruvbox card as a satori element tree + JSON colorizer
 src/config.js        config file loading + verbosity → feature resolution
 src/cli.js           glue: parse → execute → redact → render → save → copy
 ```
@@ -41,8 +42,9 @@ src/cli.js           glue: parse → execute → redact → render → save → 
 
 ## Before you open a PR
 
-- Keep the dependency list short. puppeteer-core is the only runtime dep, and I'd
-  rather hand-roll something small than add a package.
+- Keep the dependency list short. The runtime deps are `satori` (card → SVG) and
+  `@resvg/resvg-js` (SVG → PNG); I'd rather hand-roll something small than add a
+  package.
 - Test the happy path, a sad path (e.g. `httpbin.org/status/404`), and a network
   failure, and eyeball the rendered PNGs.
 - Match the surrounding style — small modules, JSDoc on the exported functions,

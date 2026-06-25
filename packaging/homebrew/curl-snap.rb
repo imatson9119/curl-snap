@@ -18,15 +18,6 @@ class CurlSnap < Formula
     bin.install_symlink Dir["#{libexec}/bin/*"]
   end
 
-  def caveats
-    <<~EOS
-      curl-snap renders cards with a headless browser, so you'll need Chrome,
-      Chromium, Edge, or Brave installed. It will not download one for you.
-      If you don't have one yet:
-        brew install --cask google-chrome
-    EOS
-  end
-
   test do
     assert_match "curl-snap #{version}", shell_output("#{bin}/curl-snap --version")
   end

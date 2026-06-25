@@ -44,7 +44,6 @@ Options:
       --reveal a,b     header/JSON keys to force-show
       --open / --no-open        open (or don't) the PNG after creating it
       --width <px>     card width (default 760)
-      --chrome <path>  Chrome/Chromium executable to use
 
 Config:
       --config <path>  use a specific config file (merged on top of the rest)
@@ -111,7 +110,6 @@ function parseArgs(argv) {
       case '--open': opts.open = true; break;
       case '--no-open': opts.open = false; break;
       case '--width': opts.width = parseInt(value(), 10) || 760; break;
-      case '--chrome': opts.chrome = value(); break;
       case '--verbosity': opts.verbosity = value(); break;
       case '-v': opts.verbosity = 'medium'; break;
       case '-vv': opts.verbosity = 'high'; break;
