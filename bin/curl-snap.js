@@ -48,7 +48,7 @@ Options:
       --padding <px>   space around the card (default 28)
       --background <v> card backdrop: none (default) | a CSS color |
                        a CSS gradient | auto (theme-derived)
-      --window / --no-window    add a macOS-style title bar (default off)
+      --window / --no-window    macOS-style title bar (default on)
       --title <str>    window-bar title (default: the request domain)
       --theme <name>   color theme (default gruvbox) · see --list-themes
       --list-themes    list the bundled themes and exit

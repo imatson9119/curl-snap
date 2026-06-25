@@ -84,7 +84,7 @@ status/timing summary in the terminal — no file is written. Pass `--out` (or
 | `--width <px>` | Card width (default 760) |
 | `--padding <px>` | Space around the card (default 28) |
 | `--background <v>` | Backdrop: `none` (default), a CSS color, a CSS gradient, or `auto` |
-| `--window` / `--no-window` | Add a macOS-style title bar (default off) |
+| `--window` / `--no-window` | macOS-style title bar (default on) |
 | `--title <str>` | Window-bar title (default: the request domain) |
 | `--theme <name>` | Color theme (default `gruvbox`) · see `--list-themes` |
 | `--list-themes` | List the bundled themes and exit |
@@ -158,11 +158,11 @@ than failing.
 
 ## Backdrops & window chrome
 
-For a more share-ready image — tweets, blog posts, slides — drop the card onto a
-backdrop and add a window frame:
+Cards come with a macOS-style title bar by default. For a more share-ready image
+— tweets, blog posts, slides — drop the card onto a backdrop too:
 
 ```sh
-curl-snap '<curl>' --background "linear-gradient(135deg,#1e3a8a,#7c3aed)" --window
+curl-snap '<curl>' --background "linear-gradient(135deg,#1e3a8a,#7c3aed)"
 ```
 
 ![A curl-snap card with a gradient backdrop and window chrome](samples/showcase-window.png)
@@ -171,8 +171,8 @@ curl-snap '<curl>' --background "linear-gradient(135deg,#1e3a8a,#7c3aed)" --wind
   (`linear-gradient(...)`), or `auto` (a subtle backdrop derived from the active
   theme). Default is `none` (transparent).
 - `--padding <px>` sets the margin around the card (default 28).
-- `--window` adds a macOS-style title bar; `--title` overrides the default
-  (the request domain).
+- The window title bar is on by default; `--no-window` removes it, and `--title`
+  overrides the default title (the request domain).
 
 ## SVG output
 
