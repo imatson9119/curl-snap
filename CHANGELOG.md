@@ -6,6 +6,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-06-25
+
+This release drops the headless-browser dependency entirely — curl-snap now
+renders in-process, so there's nothing external to install.
+
 ### Added
 - Color themes. Pick a palette with `--theme <name>` (`--list-themes` to see
   them): bundled dark — `gruvbox` (default), `dracula`, `nord`, `one-dark`,
@@ -21,7 +26,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   is deterministic and there's nothing external to install.
 
 ### Removed
-- The `--chrome` flag and `CURL_SNAP_CHROME` env var (no browser to point at).
+- **Breaking:** the `--chrome` flag and `CURL_SNAP_CHROME` env var — there's no
+  browser to point at anymore. (Nothing to migrate: rendering needs no browser.)
 
 ## [1.1.0] - 2026-06-23
 
@@ -53,6 +59,7 @@ Initial release.
 - Config files (global + project + `--config`) with `--init-config`,
   `--print-config`, and `--no-config`.
 
-[Unreleased]: https://github.com/imatson9119/curl-snap/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/imatson9119/curl-snap/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/imatson9119/curl-snap/releases/tag/v2.0.0
 [1.1.0]: https://github.com/imatson9119/curl-snap/releases/tag/v1.1.0
 [1.0.0]: https://github.com/imatson9119/curl-snap/releases/tag/v1.0.0
