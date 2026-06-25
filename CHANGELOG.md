@@ -6,6 +6,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Backdrops:** `--background` puts the card on a backdrop — a CSS color, a CSS
+  gradient, or `auto` (derived from the active theme). `--padding` adjusts the
+  margin around the card. Default stays transparent.
+- **Window chrome:** `--window` adds a macOS-style title bar (traffic-light dots
+  + a centered title); `--title` overrides the default (the request domain).
+- **SVG output:** `--format svg` (or an `.svg` `--out` path) writes a
+  self-contained vector; with SVG the clipboard receives the markup as text.
+- **Clipboard parity:** image/text copy now works on macOS, Linux (X11 `xclip`
+  and Wayland `wl-copy`), and Windows/WSL. `--open` works on all platforms.
+
 ## [2.0.0] - 2026-06-25
 
 This release drops the headless-browser dependency entirely — curl-snap now

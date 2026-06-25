@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
-import { buildTree } from './template.js';
+import { buildTree, rootWidth } from './template.js';
 
 // Resolve the vendored fonts relative to this module (not cwd), so it works the
 // same whether installed locally, globally (npm i -g), via npx, or in the
@@ -22,18 +22,28 @@ const fonts = [
   { name: 'Fira Mono', weight: 700, style: 'normal', data: fs.readFileSync(path.join(fontDir, 'FiraMono-Bold.ttf')) },
 ];
 
+// Shared: model → satori SVG string. Width is computed in exactly one place
+// (template.rootWidth) so the satori canvas can't drift from the root vnode.
+// satori auto-computes the height, and vectorizes text to paths, so the SVG is
+// self-contained (no font needed to view it).
+async function buildSvg(model) {
+  return satori(buildTree(model), { width: rootWidth(model), fonts });
+}
+
+/**
+ * @param {Object} model   see template.buildTree
+ * @returns {Promise<string>}  portable SVG markup
+ */
+export async function renderSvg(model) {
+  return buildSvg(model);
+}
+
 /**
  * @param {Object} model   see template.buildTree
  * @returns {Promise<Buffer>}
  */
 export async function renderPng(model) {
-  // satori auto-computes the height from the content when only width is given.
-  const svg = await satori(buildTree(model), {
-    width: model.width + 56,
-    fonts,
-  });
-
-  const resvg = new Resvg(svg, {
+  const resvg = new Resvg(await buildSvg(model), {
     // deviceScaleFactor: 2 equivalent — render at 2x for crisp output.
     fitTo: { mode: 'zoom', value: 2 },
     // Transparent background so the card's drop shadow keeps its alpha.

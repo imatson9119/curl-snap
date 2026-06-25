@@ -36,14 +36,20 @@ Metadata toggles (override whatever verbosity implies):
 
 Options:
   -c, --clipboard      read the curl command from the clipboard
-  -o, --out <file>     output PNG path (default ./curl-snap-<timestamp>.png)
-      --out-dir <dir>  directory for the timestamped PNG (when --out is not set)
+  -o, --out <file>     output path (default ./curl-snap-<timestamp>.<ext>)
+      --out-dir <dir>  directory for the timestamped image (when --out is not set)
+      --format <fmt>   output format: png (default) | svg
       --copy / --no-copy        copy (or don't) the image to the clipboard
       --no-redact      show sensitive values (default: masked)
       --redact a,b     additional header/JSON keys to mask
       --reveal a,b     header/JSON keys to force-show
-      --open / --no-open        open (or don't) the PNG after creating it
+      --open / --no-open        open (or don't) the image after creating it
       --width <px>     card width (default 760)
+      --padding <px>   space around the card (default 28)
+      --background <v> card backdrop: none (default) | a CSS color |
+                       a CSS gradient | auto (theme-derived)
+      --window / --no-window    add a macOS-style title bar (default off)
+      --title <str>    window-bar title (default: the request domain)
       --theme <name>   color theme (default gruvbox) · see --list-themes
       --list-themes    list the bundled themes and exit
 
@@ -112,6 +118,17 @@ function parseArgs(argv) {
       case '--open': opts.open = true; break;
       case '--no-open': opts.open = false; break;
       case '--width': opts.width = parseInt(value(), 10) || 760; break;
+      case '--padding': {
+        const n = parseInt(value(), 10);
+        opts.padding = Number.isNaN(n) ? undefined : n; // let config.js validate/warn
+        break;
+      }
+      case '--background': opts.background = value(); break;
+      case '--no-background': opts.background = 'none'; break;
+      case '--window': opts.window = true; break;
+      case '--no-window': opts.window = false; break;
+      case '--title': opts.title = value(); break;
+      case '--format': opts.format = value(); break;
       case '--theme': opts.theme = value(); break;
       case '--list-themes': opts.listThemes = true; break;
       case '--verbosity': opts.verbosity = value(); break;
