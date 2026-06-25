@@ -6,6 +6,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Color themes. Pick a palette with `--theme <name>` (`--list-themes` to see
+  them): bundled dark — `gruvbox` (default), `dracula`, `nord`, `one-dark`,
+  `catppuccin`, `tokyo-night`; light — `github-light`, `solarized-light`,
+  `catppuccin-latte`. Define your own in config under `themes` (15 hex slots,
+  with an optional `base` to inherit from), or set `theme` to an inline object.
+  Gruvbox stays the default and is unchanged.
+
 ### Changed
 - Rendering no longer requires a browser. The card is now rasterized in-process
   with `satori` (→ SVG) and `@resvg/resvg-js` (→ PNG) instead of screenshotting

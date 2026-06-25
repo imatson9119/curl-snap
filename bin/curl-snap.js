@@ -6,7 +6,7 @@ import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { run } from '../src/cli.js';
-import { loadConfig, resolveOptions, initConfig, VERBOSITY_LEVELS } from '../src/config.js';
+import { loadConfig, resolveOptions, initConfig, VERBOSITY_LEVELS, listThemes, DEFAULT_THEME } from '../src/config.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -44,6 +44,8 @@ Options:
       --reveal a,b     header/JSON keys to force-show
       --open / --no-open        open (or don't) the PNG after creating it
       --width <px>     card width (default 760)
+      --theme <name>   color theme (default gruvbox) · see --list-themes
+      --list-themes    list the bundled themes and exit
 
 Config:
       --config <path>  use a specific config file (merged on top of the rest)
@@ -110,6 +112,8 @@ function parseArgs(argv) {
       case '--open': opts.open = true; break;
       case '--no-open': opts.open = false; break;
       case '--width': opts.width = parseInt(value(), 10) || 760; break;
+      case '--theme': opts.theme = value(); break;
+      case '--list-themes': opts.listThemes = true; break;
       case '--verbosity': opts.verbosity = value(); break;
       case '-v': opts.verbosity = 'medium'; break;
       case '-vv': opts.verbosity = 'high'; break;
@@ -162,6 +166,14 @@ async function main() {
 
   if (opts.help) {
     process.stdout.write(HELP);
+    return;
+  }
+
+  if (opts.listThemes) {
+    process.stdout.write('Available themes:\n');
+    for (const name of listThemes()) {
+      process.stdout.write(`  ${name}${name === DEFAULT_THEME ? '  (default)' : ''}\n`);
+    }
     return;
   }
 

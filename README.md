@@ -81,6 +81,8 @@ status/timing summary in the terminal — no file is written. Pass `--out` (or
 | `--reveal a,b` | Header/JSON keys to force-show |
 | `--open` / `--no-open` | Open (or don't) the PNG after making it |
 | `--width <px>` | Card width (default 760) |
+| `--theme <name>` | Color theme (default `gruvbox`) · see `--list-themes` |
+| `--list-themes` | List the bundled themes and exit |
 | `-h, --help` | Help |
 | `-V, --version` | Version |
 
@@ -106,6 +108,46 @@ curl-snap '<curl>' --verbosity high
 
 The individual flags win over the level, so `-vv --no-command` means "everything,
 but spare me the command block."
+
+## Themes
+
+The card ships in **gruvbox** by default, but you can pick another palette with
+`--theme`:
+
+```sh
+curl-snap '<curl>' --theme dracula
+curl-snap --list-themes        # see them all
+```
+
+Bundled themes — dark: `gruvbox`, `dracula`, `nord`, `one-dark`, `catppuccin`
+(Mocha), `tokyo-night`; light: `github-light`, `solarized-light`,
+`catppuccin-latte`.
+
+| dracula | github-light |
+| --- | --- |
+| ![dracula](samples/theme-dracula.png) | ![github-light](samples/theme-github-light.png) |
+
+### Custom themes
+
+A theme is just a flat set of 15 hex values — 8 structural slots
+(`background`, `panel`, `codeBackground`, `border`, `text`, `textDim`,
+`textMuted`, `accentText`) and 7 accents (`red`, `green`, `yellow`, `blue`,
+`purple`, `cyan`, `orange`). Define your own in a config file under `themes`,
+then select it by name. Any slot you omit is inherited from `base` (or the
+default), so you can tweak just a color or two:
+
+```json
+{
+  "theme": "midnight",
+  "themes": {
+    "midnight": { "base": "tokyo-night", "green": "#00ffa0", "accentText": "#000000" }
+  }
+}
+```
+
+You can also set `theme` directly to an inline object instead of a name. Unknown
+theme names or invalid hex values fall back to the default with a warning rather
+than failing.
 
 ## Redacting secrets
 

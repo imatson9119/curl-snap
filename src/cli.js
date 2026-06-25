@@ -8,6 +8,7 @@ import { parseCurl } from './parse-curl.js';
 import { execute } from './execute.js';
 import { redactHeaders, redactBody, redactPath, redactParams } from './redact.js';
 import { renderPng } from './render.js';
+import { resolveTheme } from './themes.js';
 import { copyImageToClipboard } from './clipboard.js';
 
 // Minimal ANSI helpers for the terminal summary.
@@ -49,6 +50,8 @@ function statusColor(status, ok) {
  * @param {string[]} [options.reveal]
  * @param {boolean} [options.open=false]
  * @param {number} [options.width=760]
+ * @param {string|Object} [options.theme]   preset name or inline theme object
+ * @param {Object} [options.themes]         user-defined named themes
  * @param {string} [options.verbosity='low']
  * @param {Object} [options.features]   {responseHeaders, requestMeta, responseMeta, command}
  * @param {string} [options.outDir]
@@ -61,6 +64,12 @@ export async function run(options) {
     extraKeys: options.extraRedact || [],
     reveal: options.reveal || [],
   };
+
+  const { theme, warnings: themeWarnings } = resolveTheme({
+    name: options.theme,
+    userThemes: options.themes,
+  });
+  for (const w of themeWarnings) process.stderr.write(c.yellow(`⚠ ${w}\n`));
 
   const spec = parseCurl(options.curl);
   for (const w of spec.warnings) process.stderr.write(c.yellow(`⚠ ${w}\n`));
@@ -112,6 +121,7 @@ export async function run(options) {
     requestMeta,
     features,
     width,
+    theme,
     timestamp: human,
   };
 
