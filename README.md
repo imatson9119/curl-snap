@@ -124,13 +124,15 @@ curl-snap '<curl>' --theme dracula
 curl-snap --list-themes        # see them all
 ```
 
-Bundled themes — dark: `gruvbox`, `dracula`, `nord`, `one-dark`, `catppuccin`
-(Mocha), `tokyo-night`; light: `github-light`, `solarized-light`,
-`catppuccin-latte`.
+Nine themes ship in the box — six dark, three light:
 
-| dracula | github-light |
-| --- | --- |
-| ![dracula](samples/theme-dracula.png) | ![github-light](samples/theme-github-light.png) |
+| `gruvbox` (default) | `dracula` | `nord` |
+| --- | --- | --- |
+| ![gruvbox](samples/themes/gruvbox.png) | ![dracula](samples/themes/dracula.png) | ![nord](samples/themes/nord.png) |
+| **`one-dark`** | **`catppuccin`** (Mocha) | **`tokyo-night`** |
+| ![one-dark](samples/themes/one-dark.png) | ![catppuccin](samples/themes/catppuccin.png) | ![tokyo-night](samples/themes/tokyo-night.png) |
+| **`github-light`** | **`solarized-light`** | **`catppuccin-latte`** |
+| ![github-light](samples/themes/github-light.png) | ![solarized-light](samples/themes/solarized-light.png) | ![catppuccin-latte](samples/themes/catppuccin-latte.png) |
 
 ### Custom themes
 
