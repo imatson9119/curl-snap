@@ -5,10 +5,10 @@
 # updated for the new version. See RELEASING.md.
 
 class CurlSnap < Formula
-  desc "Turn a curl request into a polished PNG for PR evidence"
+  desc "Render a curl request and response as a clean, shareable image"
   homepage "https://github.com/imatson9119/curl-snap"
-  url "https://registry.npmjs.org/curl-snap/-/curl-snap-1.1.0.tgz"
-  sha256 "38b6ebccce408cc18cb8a84ca5dc3c882e0b305a6a03b4de528c94530d5bee76"
+  url "https://registry.npmjs.org/curl-snap/-/curl-snap-2.4.0.tgz"
+  sha256 "da56b34cbd9a4e06e5744e73f702335e1e912d30b490fc3e807ca1bfc186ce5c"
   license "MIT"
 
   depends_on "node"
