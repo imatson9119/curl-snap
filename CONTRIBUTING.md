@@ -24,7 +24,8 @@ src/parse-curl.js    tokenize + parse a curl command into a RequestSpec
 src/execute.js       run the request via fetch, capture status/timing/body
 src/redact.js        mask sensitive headers / JSON keys / query params
 src/render.js        render the card to PNG with satori + resvg
-src/template.js      the Gruvbox card as a satori element tree + JSON colorizer
+src/template.js      the card as a satori element tree + JSON colorizer
+src/themes.js        color theme presets + resolution (the 15-slot palette)
 src/config.js        config file loading + verbosity → feature resolution
 src/cli.js           glue: parse → execute → redact → render → save → copy
 ```
@@ -38,7 +39,9 @@ src/cli.js           glue: parse → execute → redact → render → save → 
   `config.js` (wire it into the `low`/`medium`/`high` presets and give it
   `--thing` / `--no-thing` flags in `bin/curl-snap.js`), then render it in
   `template.js`. Existing features like `responseMeta` are a good template.
-- **Theming:** the colors and layout all live in `template.js`.
+- **Theming:** colors live in `themes.js` (presets are flat 15-slot palettes);
+  the role→slot mapping (GET→green, JSON string→green, …) and layout live in
+  `template.js`. To add a preset, add its palette to `PRESETS`.
 
 ## Before you open a PR
 

@@ -1,8 +1,14 @@
-// Build the Gruvbox-theme card as a satori element tree. Pure data — no
-// framework, no HTML strings. satori consumes vnodes of the shape
+// Build the themed card as a satori element tree. Pure data — no framework, no
+// HTML strings. satori consumes vnodes of the shape
 // `{ type, props: { style, children } }` with inline styles only (no CSS class
 // selectors, no <style> block, no pseudo-elements), so the whole card is
 // composed from the `h()` helper below.
+//
+// Colors come from a resolved theme object (see themes.js) passed in via
+// model.theme — this file owns the role→slot mapping (GET→green, JSON string→
+// green, kv-key→cyan, …); the theme only supplies the 15 hex values.
+
+import { resolveTheme } from './themes.js';
 
 // vnode constructor. `children` may be a string, a vnode, or an array of either.
 function h(type, style, children) {
@@ -22,7 +28,7 @@ function codeLine(children) {
 }
 
 // Colorize one line of pretty-printed JSON into an array of <span> vnodes.
-function colorizeLine(text) {
+function colorizeLine(text, theme) {
   const tokenRe =
     /("(?:\\.|[^"\\])*"\s*:)|("(?:\\.|[^"\\])*")|(\b-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(\btrue\b|\bfalse\b)|(\bnull\b)/g;
   const out = [];
@@ -33,11 +39,11 @@ function colorizeLine(text) {
   };
   while ((m = tokenRe.exec(text)) !== null) {
     push(text.slice(last, m.index));
-    if (m[1]) push(m[1], GRUVBOX.blue); // key
-    else if (m[2]) push(m[2], GRUVBOX.green); // string
-    else if (m[3]) push(m[3], GRUVBOX.purple); // number
-    else if (m[4]) push(m[4], GRUVBOX.orange); // bool
-    else if (m[5]) push(m[5], T.muted); // null
+    if (m[1]) push(m[1], theme.blue); // key
+    else if (m[2]) push(m[2], theme.green); // string
+    else if (m[3]) push(m[3], theme.purple); // number
+    else if (m[4]) push(m[4], theme.orange); // bool
+    else if (m[5]) push(m[5], theme.textMuted); // null
     last = tokenRe.lastIndex;
   }
   push(text.slice(last));
@@ -46,8 +52,8 @@ function colorizeLine(text) {
 }
 
 // Pretty-printed JSON → array of colored code lines.
-function colorizeJson(text) {
-  return String(text).split('\n').map((line) => codeLine(colorizeLine(line)));
+function colorizeJson(text, theme) {
+  return String(text).split('\n').map((line) => codeLine(colorizeLine(line, theme)));
 }
 
 // Plain (non-JSON) text → array of code lines. Empty lines keep their height.
@@ -55,44 +61,19 @@ function plainCode(text) {
   return String(text).split('\n').map((line) => codeLine(line === '' ? ' ' : line));
 }
 
-// Gruvbox bright accents.
-const GRUVBOX = {
-  red: '#fb4934',
-  green: '#b8bb26',
-  yellow: '#fabd2f',
-  blue: '#83a598',
-  purple: '#d3869b',
-  aqua: '#8ec07c',
-  orange: '#fe8019',
-  gray: '#928374',
-};
-
-// Structural theme colors (formerly the :root CSS variables).
-const T = {
-  bg0: '#282828', // card body
-  bg0h: '#1d2021', // code blocks / pill text
-  bg1: '#32302f', // header / footer
-  line: '#3c3836',
-  line2: '#504945',
-  fg: '#ebdbb2',
-  fgDim: '#a89984',
-  muted: '#928374',
-  aqua: GRUVBOX.aqua,
-};
-
 const FONT = 'Fira Mono';
 
 // HTTP verb → accent color (drives the method pill and the top strip).
-function methodColor(method) {
+function methodColor(method, theme) {
   switch (String(method).toUpperCase()) {
-    case 'GET': return GRUVBOX.green;
-    case 'POST': return GRUVBOX.yellow;
-    case 'PUT': return GRUVBOX.blue;
-    case 'PATCH': return GRUVBOX.aqua;
-    case 'DELETE': return GRUVBOX.red;
+    case 'GET': return theme.green;
+    case 'POST': return theme.yellow;
+    case 'PUT': return theme.blue;
+    case 'PATCH': return theme.cyan;
+    case 'DELETE': return theme.red;
     case 'HEAD':
-    case 'OPTIONS': return GRUVBOX.purple;
-    default: return GRUVBOX.orange;
+    case 'OPTIONS': return theme.purple;
+    default: return theme.orange;
   }
 }
 
@@ -105,12 +86,12 @@ function statusTone(status) {
 }
 
 // Status tone → accent color (drives the response label and the bottom strip).
-function toneColor(tone) {
+function toneColor(tone, theme) {
   switch (tone) {
-    case 'ok': return GRUVBOX.green;
-    case 'redirect': return GRUVBOX.blue;
-    case 'warn': return GRUVBOX.yellow;
-    default: return GRUVBOX.red;
+    case 'ok': return theme.green;
+    case 'redirect': return theme.blue;
+    case 'warn': return theme.yellow;
+    default: return theme.red;
   }
 }
 
@@ -122,7 +103,7 @@ function formatBytes(n) {
 }
 
 // A key/value table (request/response headers, query params).
-function kvBlock(items) {
+function kvBlock(items, theme) {
   return h(
     'div',
     { display: 'flex', flexDirection: 'column', gap: 7 },
@@ -130,15 +111,15 @@ function kvBlock(items) {
       h('div', { display: 'flex', gap: 14, fontSize: 13, lineHeight: 1.5 }, [
         // satori has no min-width; a fixed width matches the old min-width:150
         // visually since keys are short labels.
-        h('span', { color: T.aqua, width: 150, flexShrink: 0, wordBreak: 'break-all' }, it.name),
-        h('span', { flexGrow: 1, flexShrink: 1, color: T.fg, wordBreak: 'break-all' }, it.value),
+        h('span', { color: theme.cyan, width: 150, flexShrink: 0, wordBreak: 'break-all' }, it.name),
+        h('span', { flexGrow: 1, flexShrink: 1, color: theme.text, wordBreak: 'break-all' }, it.value),
       ])
     )
   );
 }
 
 // A monospace code block: a column of code lines (from colorizeJson/plainCode).
-function codeBlock(lines, extraStyle = {}) {
+function codeBlock(lines, theme, extraStyle = {}) {
   return h(
     'div',
     {
@@ -146,9 +127,9 @@ function codeBlock(lines, extraStyle = {}) {
       flexDirection: 'column',
       fontSize: 13,
       lineHeight: 1.6,
-      color: T.fg,
-      backgroundColor: T.bg0h,
-      border: `1px solid ${T.line}`,
+      color: theme.text,
+      backgroundColor: theme.codeBackground,
+      border: `1px solid ${theme.border}`,
       borderRadius: 8,
       padding: '14px 16px',
       ...extraStyle,
@@ -159,7 +140,7 @@ function codeBlock(lines, extraStyle = {}) {
 
 // A card section: title row (+ optional meta), optional sub-meta line, body.
 // `first` drops the top border (satori has no :first-child selector).
-function section(title, inner, { meta, subMeta, first } = {}) {
+function section(title, inner, { meta, subMeta, first } = {}, theme) {
   const children = [
     h(
       'div',
@@ -176,7 +157,7 @@ function section(title, inner, { meta, subMeta, first } = {}) {
             fontSize: 11,
             fontWeight: 700,
             letterSpacing: '0.18em',
-            color: T.fgDim,
+            color: theme.textDim,
           },
           // text-transform isn't supported; uppercase in JS.
           String(title).toUpperCase()
@@ -193,7 +174,7 @@ function section(title, inner, { meta, subMeta, first } = {}) {
           marginTop: -4,
           marginBottom: 10,
           fontSize: 11.5,
-          color: T.muted,
+          color: theme.textMuted,
           letterSpacing: '0.02em',
           wordBreak: 'break-all',
         },
@@ -208,7 +189,7 @@ function section(title, inner, { meta, subMeta, first } = {}) {
       display: 'flex',
       flexDirection: 'column',
       padding: '16px 0',
-      ...(first ? {} : { borderTop: `1px solid ${T.line}` }),
+      ...(first ? {} : { borderTop: `1px solid ${theme.border}` }),
     },
     children
   );
@@ -224,15 +205,19 @@ function section(title, inner, { meta, subMeta, first } = {}) {
  * @param {boolean} model.bodyIsJson
  * @param {Object} model.response   ResponseResult (body already redacted)
  * @param {number} model.width
+ * @param {Object} [model.theme]    resolved theme (see themes.js)
  * @returns {Object} satori element tree (root vnode)
  */
 export function buildTree(model) {
   const { method, domain, path, headers, body, bodyIsJson, response, width } = model;
   const features = model.features || {};
+  // cli.js always supplies a resolved theme; fall back so direct callers/tests
+  // (and any future entry points) still render the default.
+  const theme = model.theme || resolveTheme({}).theme;
 
   const tone = statusTone(response.ok ? response.status : undefined);
-  const mColor = methodColor(method);
-  const rColor = toneColor(tone);
+  const mColor = methodColor(method, theme);
+  const rColor = toneColor(tone, theme);
   const statusLabel = response.ok
     ? `${response.status} ${response.statusText || ''}`.trim()
     : 'NO RESPONSE';
@@ -242,18 +227,18 @@ export function buildTree(model) {
   // Command (high verbosity) — reconstructed, redacted curl.
   if (features.command && model.command) {
     sections.push((first) =>
-      section('Command', codeBlock(plainCode(model.command), { color: T.fgDim }), { first })
+      section('Command', codeBlock(plainCode(model.command), theme, { color: theme.textDim }), { first }, theme)
     );
   }
 
   // Query parameters pulled from the URL.
   if (model.query && model.query.length) {
-    sections.push((first) => section('Query Parameters', kvBlock(model.query), { first }));
+    sections.push((first) => section('Query Parameters', kvBlock(model.query, theme), { first }, theme));
   }
 
   // Request headers (only those explicitly set).
   if (headers.length) {
-    sections.push((first) => section('Request Headers', kvBlock(headers), { first }));
+    sections.push((first) => section('Request Headers', kvBlock(headers, theme), { first }, theme));
   }
 
   // Request body.
@@ -264,18 +249,18 @@ export function buildTree(model) {
       if (model.requestMeta.contentType) bits.push(model.requestMeta.contentType);
       subMeta = bits.join(' · ');
     }
-    const inner = codeBlock(bodyIsJson ? colorizeJson(body) : plainCode(body));
-    sections.push((first) => section('Request', inner, { subMeta, first }));
+    const inner = codeBlock(bodyIsJson ? colorizeJson(body, theme) : plainCode(body), theme);
+    sections.push((first) => section('Request', inner, { subMeta, first }, theme));
   }
 
   // Response body.
   let responseInner;
   if (response.ok) {
     responseInner = response.body
-      ? codeBlock(response.isJson ? colorizeJson(response.body) : plainCode(response.body))
-      : h('div', { display: 'flex', fontSize: 13, color: T.muted }, '(empty response body)');
+      ? codeBlock(response.isJson ? colorizeJson(response.body, theme) : plainCode(response.body), theme)
+      : h('div', { display: 'flex', fontSize: 13, color: theme.textMuted }, '(empty response body)');
   } else {
-    responseInner = codeBlock(plainCode(response.error || 'Request failed'), { color: GRUVBOX.red });
+    responseInner = codeBlock(plainCode(response.error || 'Request failed'), theme, { color: theme.red });
   }
   const responseMeta = [
     h(
@@ -286,12 +271,12 @@ export function buildTree(model) {
         padding: '3px 9px',
         borderRadius: 5,
         letterSpacing: '0.03em',
-        color: T.bg0h,
+        color: theme.accentText,
         backgroundColor: rColor,
       },
       statusLabel
     ),
-    h('div', { fontSize: 12, color: T.muted }, `${response.durationMs} ms`),
+    h('div', { fontSize: 12, color: theme.textMuted }, `${response.durationMs} ms`),
   ];
   let responseSub = '';
   if (features.responseMeta && response.ok) {
@@ -302,13 +287,13 @@ export function buildTree(model) {
     responseSub = bits.join(' · ');
   }
   sections.push((first) =>
-    section('Response', responseInner, { meta: responseMeta, subMeta: responseSub, first })
+    section('Response', responseInner, { meta: responseMeta, subMeta: responseSub, first }, theme)
   );
 
   // Response headers (medium+).
   if (features.responseHeaders && model.responseHeaders && model.responseHeaders.length) {
     sections.push((first) =>
-      section('Response Headers', kvBlock(model.responseHeaders), { first })
+      section('Response Headers', kvBlock(model.responseHeaders, theme), { first }, theme)
     );
   }
 
@@ -320,8 +305,8 @@ export function buildTree(model) {
       display: 'flex',
       flexDirection: 'column',
       width,
-      backgroundColor: T.bg0,
-      border: `1px solid ${T.line}`,
+      backgroundColor: theme.background,
+      border: `1px solid ${theme.border}`,
       borderRadius: 12,
       overflow: 'hidden',
       boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
@@ -336,8 +321,8 @@ export function buildTree(model) {
           display: 'flex',
           flexDirection: 'column',
           padding: '18px 22px',
-          backgroundColor: T.bg1,
-          borderBottom: `1px solid ${T.line}`,
+          backgroundColor: theme.panel,
+          borderBottom: `1px solid ${theme.border}`,
         },
         [
           h('div', { display: 'flex', alignItems: 'center', gap: 12 }, [
@@ -349,14 +334,14 @@ export function buildTree(model) {
                 letterSpacing: '0.06em',
                 padding: '5px 11px',
                 borderRadius: 6,
-                color: T.bg0h,
+                color: theme.accentText,
                 backgroundColor: mColor,
               },
               method
             ),
             h(
               'div',
-              { display: 'flex', flexShrink: 1, fontSize: 19, fontWeight: 500, color: T.fg, lineHeight: 1.3, wordBreak: 'break-all' },
+              { display: 'flex', flexShrink: 1, fontSize: 19, fontWeight: 500, color: theme.text, lineHeight: 1.3, wordBreak: 'break-all' },
               path
             ),
           ]),
@@ -367,7 +352,7 @@ export function buildTree(model) {
               marginTop: 7,
               marginLeft: 2,
               fontSize: 12.5,
-              color: T.muted,
+              color: theme.textMuted,
               letterSpacing: '0.02em',
             },
             // The old ::before { content:"↗ " } becomes a literal span.
@@ -385,13 +370,13 @@ export function buildTree(model) {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '12px 22px',
-          borderTop: `1px solid ${T.line}`,
+          borderTop: `1px solid ${theme.border}`,
           fontSize: 11,
-          color: T.muted,
-          backgroundColor: T.bg1,
+          color: theme.textMuted,
+          backgroundColor: theme.panel,
         },
         [
-          h('div', { display: 'flex', letterSpacing: '0.04em', color: T.fgDim, fontWeight: 700 }, 'curl-snap'),
+          h('div', { display: 'flex', letterSpacing: '0.04em', color: theme.textDim, fontWeight: 700 }, 'curl-snap'),
           h('div', { display: 'flex' }, model.timestamp || ''),
         ]
       ),
@@ -409,7 +394,7 @@ export function buildTree(model) {
       width: width + 56,
       padding: 28,
       fontFamily: FONT,
-      color: T.fg,
+      color: theme.text,
     },
     card
   );

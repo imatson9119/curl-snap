@@ -9,6 +9,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+// Re-export theme helpers so the CLI imports config concerns from one module.
+export { listThemes, DEFAULT as DEFAULT_THEME } from './themes.js';
+
 export const VERBOSITY_LEVELS = ['low', 'medium', 'high'];
 
 // The individual metadata features verbosity bundles together.
@@ -71,9 +74,12 @@ export function loadConfig({ explicitPath, useConfig = true } = {}) {
 
   const merged = {};
   for (const { config } of sources) {
-    const { features, extraRedact, reveal, ...rest } = config;
+    const { features, extraRedact, reveal, themes, ...rest } = config;
     Object.assign(merged, rest);
     if (features) merged.features = { ...(merged.features || {}), ...features };
+    // user-defined themes accumulate by name across sources (like features),
+    // so a project config can add a theme without clobbering global ones.
+    if (themes) merged.themes = { ...(merged.themes || {}), ...themes };
     // arrays accumulate across sources rather than replace
     if (extraRedact) merged.extraRedact = [...(merged.extraRedact || []), ...extraRedact];
     if (reveal) merged.reveal = [...(merged.reveal || []), ...reveal];
@@ -116,6 +122,8 @@ export function resolveOptions(cliOpts, config) {
     reveal: [...(config.reveal || []), ...(cliOpts.reveal || [])],
     open: pick('open', false),
     width: pick('width', 760),
+    theme: pick('theme', 'gruvbox'), // preset name OR an inline theme object
+    themes: config.themes || undefined, // user-defined named themes
     verbosity,
     features,
   };
@@ -129,6 +137,8 @@ export function exampleConfig() {
     copy: true,
     open: false,
     width: 760,
+    theme: 'gruvbox',
+    themes: {}, // e.g. { mine: { background: '#101010', green: '#00ff88', … } }
     outDir: null,
     extraRedact: [],
     reveal: [],
