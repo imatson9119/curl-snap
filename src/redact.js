@@ -44,6 +44,17 @@ function keyIsSensitive(name, extra, reveal) {
   return false;
 }
 
+// Value-based detection (conservative, high-precision): catches secrets whose
+// key name isn't obviously sensitive — JWTs (three base64url segments) and
+// scheme-prefixed bearer/basic tokens.
+const JWT_RE = /^[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}$/;
+const BEARER_RE = /^(Bearer|Basic|Token)\s+\S{12,}$/i;
+function valueLooksSecret(v) {
+  if (typeof v !== 'string') return false;
+  const s = v.trim();
+  return JWT_RE.test(s) || BEARER_RE.test(s);
+}
+
 function headerIsSensitive(name, extra, reveal, substringMatch) {
   const lower = String(name).toLowerCase();
   if (reveal.has(lower)) return false;
@@ -73,11 +84,16 @@ function maskHeaderValue(name, value) {
 export function redactHeaders(headers, options, { substringMatch = true } = {}) {
   if (!options.enabled) return headers;
   const { extra, reveal } = buildMatchers(options);
-  return headers.map((h) =>
-    headerIsSensitive(h.name, extra, reveal, substringMatch)
-      ? { name: h.name, value: maskHeaderValue(h.name, h.value) }
-      : h
-  );
+  return headers.map((h) => {
+    if (headerIsSensitive(h.name, extra, reveal, substringMatch)) {
+      return { name: h.name, value: maskHeaderValue(h.name, h.value) };
+    }
+    // Value-based: mask a token-shaped value under a non-secret-looking header.
+    if (!reveal.has(String(h.name).toLowerCase()) && valueLooksSecret(h.value)) {
+      return { name: h.name, value: maskHeaderValue(h.name, h.value) };
+    }
+    return h;
+  });
 }
 
 /**
@@ -92,7 +108,7 @@ export function redactParams(params, options) {
   );
 }
 
-/** Recursively mask sensitive keys within a parsed JSON value. */
+/** Recursively mask sensitive keys (and token-shaped values) within JSON. */
 function redactJsonValue(value, extra, reveal) {
   if (Array.isArray(value)) {
     return value.map((v) => redactJsonValue(v, extra, reveal));
@@ -101,13 +117,19 @@ function redactJsonValue(value, extra, reveal) {
     const out = {};
     for (const [k, v] of Object.entries(value)) {
       if (keyIsSensitive(k, extra, reveal)) {
-        out[k] = typeof v === 'object' && v !== null ? MASK : MASK;
+        out[k] = MASK;
+      } else if (reveal.has(String(k).toLowerCase())) {
+        // force-show this key: skip the value scan on its direct string, but
+        // still redact nested keys if it's an object/array.
+        out[k] = typeof v === 'string' ? v : redactJsonValue(v, extra, reveal);
       } else {
         out[k] = redactJsonValue(v, extra, reveal);
       }
     }
     return out;
   }
+  // Leaf string anywhere: mask if it looks like a token/JWT.
+  if (typeof value === 'string' && valueLooksSecret(value)) return MASK;
   return value;
 }
 
@@ -138,9 +160,14 @@ export function redactBody(body, options) {
         const eq = pair.indexOf('=');
         if (eq === -1) return pair;
         const key = pair.slice(0, eq);
-        return keyIsSensitive(decodeURIComponent(key), extra, reveal)
-          ? `${key}=${MASK}`
-          : pair;
+        const decodedKey = decodeURIComponent(key);
+        if (keyIsSensitive(decodedKey, extra, reveal)) return `${key}=${MASK}`;
+        // Value-based: mask a token-shaped value under a non-secret key.
+        const val = pair.slice(eq + 1);
+        if (!reveal.has(decodedKey.toLowerCase()) && valueLooksSecret(decodeURIComponent(val))) {
+          return `${key}=${MASK}`;
+        }
+        return pair;
       })
       .join('&');
   }

@@ -76,11 +76,16 @@ status/timing summary in the terminal — no file is written. Pass `--out` (or
 | `-o, --out <file>` | Save the image to this path (otherwise it's clipboard-only) |
 | `--out-dir <dir>` | Save a timestamped image into this directory |
 | `--format <fmt>` | Output format: `png` (default) or `svg` |
+| `--scale <1\|2\|3>` | PNG zoom factor (default 2; SVG is vector) |
 | `--copy` / `--no-copy` | Copy (or don't) the image to the clipboard |
 | `--no-redact` | Show sensitive values (they're masked by default) |
 | `--redact a,b` | Extra header/JSON keys to mask |
 | `--reveal a,b` | Header/JSON keys to force-show |
+| `--max-body-lines <n>` | Cap rendered body lines (adds `… N more lines`) |
+| `--max-body-depth <n>` | Collapse JSON nested deeper than `n` to `{ … }` |
 | `--open` / `--no-open` | Open (or don't) the image after making it |
+| `--upload` | Upload the image and print a link (confirms first) |
+| `--brand <str>` / `--no-brand` | Footer label (default: `curl-snap`) |
 | `--width <px>` | Card width (default 760) |
 | `--padding <px>` | Space around the card (default 28) |
 | `--background <v>` | Backdrop: `none` (default), a CSS color, a CSS gradient, or `auto` |
@@ -124,15 +129,19 @@ curl-snap '<curl>' --theme dracula
 curl-snap --list-themes        # see them all
 ```
 
-Nine themes ship in the box — six dark, three light:
+Fourteen themes ship in the box — eleven dark, three light:
 
 | `gruvbox` (default) | `dracula` | `nord` |
 | --- | --- | --- |
 | ![gruvbox](samples/themes/gruvbox.png) | ![dracula](samples/themes/dracula.png) | ![nord](samples/themes/nord.png) |
 | **`one-dark`** | **`catppuccin`** (Mocha) | **`tokyo-night`** |
 | ![one-dark](samples/themes/one-dark.png) | ![catppuccin](samples/themes/catppuccin.png) | ![tokyo-night](samples/themes/tokyo-night.png) |
-| **`github-light`** | **`solarized-light`** | **`catppuccin-latte`** |
-| ![github-light](samples/themes/github-light.png) | ![solarized-light](samples/themes/solarized-light.png) | ![catppuccin-latte](samples/themes/catppuccin-latte.png) |
+| **`github-dark`** | **`monokai`** | **`rose-pine`** |
+| ![github-dark](samples/themes/github-dark.png) | ![monokai](samples/themes/monokai.png) | ![rose-pine](samples/themes/rose-pine.png) |
+| **`everforest`** | **`ayu-dark`** | **`github-light`** |
+| ![everforest](samples/themes/everforest.png) | ![ayu-dark](samples/themes/ayu-dark.png) | ![github-light](samples/themes/github-light.png) |
+| **`solarized-light`** | **`catppuccin-latte`** | |
+| ![solarized-light](samples/themes/solarized-light.png) | ![catppuccin-latte](samples/themes/catppuccin-latte.png) | |
 
 ### Custom themes
 
@@ -187,6 +196,32 @@ as text.
 Auto-copy works on macOS, Linux (X11 via `xclip`, Wayland via `wl-copy`), and
 Windows/WSL. If no clipboard tool is available, curl-snap saves the file instead.
 
+## Non-JSON bodies
+
+JSON gets pretty-printed and colorized, but XML/HTML and form-encoded bodies are
+highlighted too (detected from the content-type, or the shape of the body):
+
+![XML response highlighting](samples/xml-highlight.png)
+
+`curl -F` multipart forms render their fields as well (`name=value` / `name=@file`).
+
+## Big responses
+
+A giant response makes an unwieldy card. curl-snap nudges you when a body is long,
+and gives you two opt-in knobs:
+
+- `--max-body-lines <n>` keeps the first `n` lines and appends `… N more lines`.
+- `--max-body-depth <n>` collapses JSON nested deeper than `n` to `{ … }` / `[ … ]`.
+
+## Uploading & sharing a link
+
+`--upload` posts the image to a host (default [0x0.st](https://0x0.st)) and prints
+a URL — handy for chat/tweets where you can't paste an image. Because the upload
+is **public** and redaction is best-effort, curl-snap **shows you the card's
+contents and asks you to confirm** every time (it never remembers your answer).
+In a non-interactive shell it refuses unless you pass
+`--dangerously-skip-upload-confirm`.
+
 ## Redacting secrets
 
 On by default. Anything that looks sensitive gets swapped for `••••••`:
@@ -196,15 +231,16 @@ On by default. Anything that looks sensitive gets swapped for `•••••�
 - **JSON keys**, recursively — `password`, `secret`, `token`, `api_key`,
   `access_token`, `client_secret`, `ssn`, `card`, `cvv`, and friends.
 - **Form bodies** and **query params** with sensitive names.
+- **Token-shaped values**, by content — JWTs (`xxx.yyy.zzz`) and `Bearer`/`Basic`
+  tokens get masked even when the key name isn't obviously secret.
 
 Add your own with `--redact billing_id,internal_ref`, or pull something back into
 the light with `--reveal token`. Want the unmasked version for a private doc?
 `--no-redact`.
 
-> One honest caveat: redaction is key-based. If a secret is buried *inside a
-> string value* — say, an API that echoes your raw request body back as
-> `"data": "...secret..."` — there's no key to match, so it won't get masked.
-> Glance at the response before pasting if your API does that.
+> It's still best-effort — a high-entropy secret that isn't JWT- or bearer-shaped
+> and sits under an innocent key can slip through. Glance at the response before
+> sharing if your API echoes raw values.
 
 ## Config
 
@@ -270,9 +306,9 @@ A few things I left out of v1, mostly on purpose:
 
 - The request goes through `fetch`, not the real `curl` binary, using the parsed
   pieces of your command. Supported flags: `-X`, `-H`, `-d`/`--data*`/
-  `--data-urlencode`, `--json`, `-u`, `-b`, `-A`, `-e`, `-G`, `-k`, `--url`, and a
-  bare URL. Anything fancier (`-F` multipart, client certs, proxies) gets a
-  warning, not a crash.
+  `--data-urlencode`, `--json`, `-F`/`--form` (incl. `@file`), `-u`, `-b`, `-A`,
+  `-e`, `-G`, `-k`, `-m`/`--max-time`, `--compressed`, `-L`, `--url`, and a bare
+  URL. Anything fancier (client certs, proxies) gets a warning, not a crash.
 - One image per request. No combined happy+sad stacking yet.
 - Clipboard image-copy needs a helper present (`xclip`/`wl-copy` on Linux); when
   none is available curl-snap saves the file instead.

@@ -39,17 +39,24 @@ Options:
   -o, --out <file>     output path (default ./curl-snap-<timestamp>.<ext>)
       --out-dir <dir>  directory for the timestamped image (when --out is not set)
       --format <fmt>   output format: png (default) | svg
+      --scale <1|2|3>  PNG zoom factor (default 2; SVG is resolution-independent)
       --copy / --no-copy        copy (or don't) the image to the clipboard
       --no-redact      show sensitive values (default: masked)
       --redact a,b     additional header/JSON keys to mask
       --reveal a,b     header/JSON keys to force-show
+      --max-body-lines <n>   cap rendered body lines (adds '… N more lines')
+      --max-body-depth <n>   collapse JSON nested deeper than n to { … }
       --open / --no-open        open (or don't) the image after creating it
+      --upload         upload the image and print a link (asks to confirm first)
+      --upload-host <h>         upload host (default 0x0)
+      --dangerously-skip-upload-confirm   skip the upload confirmation prompt
       --width <px>     card width (default 760)
       --padding <px>   space around the card (default 28)
       --background <v> card backdrop: none (default) | a CSS color |
                        a CSS gradient | auto (theme-derived)
       --window / --no-window    macOS-style title bar (default on)
       --title <str>    window-bar title (default: the request domain)
+      --brand <str> / --no-brand   footer label (default: curl-snap)
       --theme <name>   color theme (default gruvbox) · see --list-themes
       --list-themes    list the bundled themes and exit
 
@@ -129,6 +136,14 @@ function parseArgs(argv) {
       case '--no-window': opts.window = false; break;
       case '--title': opts.title = value(); break;
       case '--format': opts.format = value(); break;
+      case '--scale': opts.scale = parseInt(value(), 10); break;
+      case '--brand': opts.brand = value(); break;
+      case '--no-brand': opts.brand = false; break;
+      case '--max-body-lines': opts.maxBodyLines = parseInt(value(), 10); break;
+      case '--max-body-depth': opts.maxBodyDepth = parseInt(value(), 10); break;
+      case '--upload': opts.upload = true; break;
+      case '--upload-host': opts.uploadHost = value(); break;
+      case '--dangerously-skip-upload-confirm': opts.skipUploadConfirm = true; break;
       case '--theme': opts.theme = value(); break;
       case '--list-themes': opts.listThemes = true; break;
       case '--verbosity': opts.verbosity = value(); break;

@@ -1,6 +1,9 @@
 // Execute a RequestSpec using Node's built-in fetch and capture everything we
 // need for the evidence card: status, response headers, timing, and body.
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 /**
  * @typedef {Object} ResponseResult
  * @property {boolean} ok            true if a response came back (even a 4xx/5xx)
@@ -26,8 +29,38 @@ export async function execute(spec) {
   }
 
   const init = { method: spec.method, headers };
-  if (spec.body !== undefined && spec.method !== 'GET' && spec.method !== 'HEAD') {
+
+  // -F multipart: build a FormData and let fetch set the boundary.
+  if (spec.form) {
+    try {
+      const fd = new FormData();
+      for (const part of spec.form) {
+        if (part.file) {
+          const buf = fs.readFileSync(part.file);
+          fd.append(part.name, new Blob([buf]), path.basename(part.file));
+        } else {
+          fd.append(part.name, part.value);
+        }
+      }
+      init.body = fd;
+      delete headers['Content-Type']; // fetch adds the boundary itself
+    } catch (err) {
+      return { ok: false, durationMs: 0, error: `Cannot read form file: ${err.message}` };
+    }
+  } else if (spec.body !== undefined && spec.method !== 'GET' && spec.method !== 'HEAD') {
     init.body = spec.body;
+  }
+
+  // -m/--max-time (or --connect-timeout as a fallback overall cap): abort via
+  // an AbortController. fetch gives no connect-phase hook, so --connect-timeout
+  // is approximated as a total deadline.
+  const timeoutMs = spec.maxTime != null ? spec.maxTime * 1000
+    : spec.connectTimeout != null ? spec.connectTimeout * 1000 : undefined;
+  let timer;
+  if (timeoutMs) {
+    const ac = new AbortController();
+    init.signal = ac.signal;
+    timer = setTimeout(() => ac.abort(), timeoutMs);
   }
 
   const prevTlsReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
@@ -37,6 +70,7 @@ export async function execute(spec) {
   try {
     const res = await fetch(spec.url, init);
     const text = await res.text();
+    if (timer) { clearTimeout(timer); timer = undefined; }
     const durationMs = Math.round(performance.now() - start);
 
     const contentType = res.headers.get('content-type') || '';
@@ -81,14 +115,14 @@ export async function execute(spec) {
     };
   } catch (err) {
     const durationMs = Math.round(performance.now() - start);
-    return {
-      ok: false,
-      durationMs,
-      error: err && err.cause && err.cause.code
+    const error = err && err.name === 'AbortError'
+      ? `Timed out after ${timeoutMs} ms`
+      : err && err.cause && err.cause.code
         ? `${err.cause.code}: ${err.message}`
-        : (err && err.message) || String(err),
-    };
+        : (err && err.message) || String(err);
+    return { ok: false, durationMs, error };
   } finally {
+    if (timer) clearTimeout(timer);
     if (spec.insecure) {
       if (prevTlsReject === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
       else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevTlsReject;

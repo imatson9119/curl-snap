@@ -2,41 +2,27 @@
 
 Ideas on deck for curl-snap, framed around being a pretty way to **visualize and
 share** curl requests/responses (think CodeSnap for API calls). Nothing here is a
-commitment — it's a backlog to pull from. Grouped roughly by theme.
+commitment — it's a backlog to pull from.
 
-## Visual customization
-
-- **Branding** — make the `curl-snap` footer customizable or removable
-  (`--brand "myapi"` / `--no-brand`).
-- **More light/dark themes** — the palette system makes new presets cheap.
-
-_Shipped: `--background` (color/gradient/auto), `--padding`, `--window` chrome._
-
-## Output & sharing
-
-- **Scale** (`--scale 1|2|3`) — currently hardcoded at 2× (matters for PNG;
-  SVG is already resolution-independent). Maybe WebP output too.
-- **Upload & get a link** — push to a gist / 0x0 / imgur and print a URL to drop
-  into a tweet, Discord, or chat (useful where clipboard can't reach).
-
-_Shipped: SVG output (`--format svg`); clipboard parity (macOS / X11 / Wayland /
-Windows-WSL); cross-platform `--open`._
-
-## Content
-
-- **Prettify more than JSON** — syntax highlighting for XML, HTML, GraphQL, and
-  form-encoded bodies (currently JSON-or-plain).
-- **Big-body handling** — smart truncation (`--max-body-lines`, with a
-  `… N more lines` marker) and/or deep-nesting collapse so a huge response stays
-  shareable.
-- **Smarter redaction** — pattern/entropy detection for JWTs and bearer-shaped
-  tokens even when the key name isn't a known secret (matters more when the
-  destination is public).
-- **Broader curl fidelity** — support more flags so more real-world curls render
-  instead of warning: `-F` multipart, `--compressed`, cookies, redirects, client
-  certs.
-
-## Niche
+## On deck
 
 - **Multi-request / sequence cards** — stack several calls in one image (e.g.
   `auth → create → fetch`) for tutorials and threads.
+- **WebP output** — alongside PNG/SVG (would need a new rasterizer dependency;
+  resvg is PNG-only).
+- **Upload hosts** — imgur (needs a client-id) and others beyond 0x0.st.
+- **Client certs / proxies** — `--cert`/`--key`/`-x` via a custom undici
+  dispatcher (currently warns; niche for an evidence tool).
+- **JSON deep-collapse refinements** — beyond `--max-body-depth`, e.g. eliding
+  long arrays or large string values.
+- **Standalone GraphQL** highlighting (JSON-wrapped GraphQL already highlights).
+
+## Shipped
+
+- Themes (14 presets + custom), `--background` (color/gradient/auto),
+  `--padding`, `--window` chrome, `--scale`, `--brand`/`--no-brand`.
+- SVG output, clipboard parity (macOS / X11 / Wayland / Windows-WSL),
+  cross-platform `--open`, `--upload` (0x0.st) with a confirm/preview gate.
+- Non-JSON highlighting (XML/HTML/form), `-F` multipart + `-m` timeouts,
+  `--max-body-lines` / `--max-body-depth` + long-body tip.
+- Value-based redaction (JWT / bearer tokens) on top of the key-based masking.

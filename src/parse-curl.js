@@ -130,6 +130,7 @@ const FLAGS_WITH_VALUE = new Set([
   '-o', '--output',
   '-m', '--max-time',
   '--connect-timeout',
+  '-F', '--form',
 ]);
 
 // Boolean flags we recognize but mostly ignore (so they don't get treated as a URL)
@@ -156,6 +157,7 @@ export function parseCurl(command) {
 
   const headers = [];
   const dataParts = [];
+  const form = []; // -F parts: { name, value } or { name, file }
   const warnings = [];
   let method;
   let url;
@@ -165,6 +167,8 @@ export function parseCurl(command) {
   let referer;
   let basicAuth;
   let cookie;
+  let maxTime; // -m/--max-time, seconds
+  let connectTimeout; // --connect-timeout, seconds
 
   for (let i = 0; i < tokens.length; i++) {
     let tok = tokens[i];
@@ -261,11 +265,37 @@ export function parseCurl(command) {
         break;
       case '-o':
       case '--output':
-      case '-m':
-      case '--max-time':
-      case '--connect-timeout':
-        takeValue(); // accept + ignore
+        takeValue(); // accept + ignore (we don't write curl's output file)
         break;
+      case '-m':
+      case '--max-time': {
+        const n = Number(takeValue());
+        if (Number.isFinite(n) && n > 0) maxTime = n;
+        break;
+      }
+      case '--connect-timeout': {
+        const n = Number(takeValue());
+        if (Number.isFinite(n) && n > 0) connectTimeout = n;
+        break;
+      }
+      case '-F':
+      case '--form': {
+        const raw = takeValue();
+        const eq = raw.indexOf('=');
+        if (eq === -1) {
+          warnings.push(`Malformed -F (expected name=value): ${raw}`);
+          break;
+        }
+        const name = raw.slice(0, eq);
+        const val = raw.slice(eq + 1);
+        if (val.startsWith('@') || val.startsWith('<')) {
+          // @file uploads / <file reads content — take the path up to any ;type=
+          form.push({ name, file: val.slice(1).split(';')[0] });
+        } else {
+          form.push({ name, value: val });
+        }
+        break;
+      }
       case '-k':
       case '--insecure':
         insecure = true;
@@ -301,6 +331,11 @@ export function parseCurl(command) {
   if (cookie) headers.push({ name: 'Cookie', value: cookie });
   if (userAgent) headers.push({ name: 'User-Agent', value: userAgent });
   if (referer) headers.push({ name: 'Referer', value: referer });
+  // For -F, fetch sets the multipart boundary itself, but show the type on the
+  // card so the request reflects reality.
+  if (form.length && !headers.some((h) => h.name.toLowerCase() === 'content-type')) {
+    headers.push({ name: 'Content-Type', value: 'multipart/form-data' });
+  }
 
   let body = dataParts.length ? dataParts.join('&') : undefined;
 
@@ -315,7 +350,7 @@ export function parseCurl(command) {
     body = undefined;
   }
 
-  if (!method) method = body !== undefined ? 'POST' : 'GET';
+  if (!method) method = body !== undefined || form.length ? 'POST' : 'GET';
   method = method.toUpperCase();
 
   let domain = url;
@@ -332,5 +367,9 @@ export function parseCurl(command) {
     warnings.push(`Could not parse URL: ${url}`);
   }
 
-  return { method, url, domain, path, query, headers, body, insecure, warnings };
+  return {
+    method, url, domain, path, query, headers, body, insecure, warnings,
+    form: form.length ? form : undefined,
+    maxTime, connectTimeout,
+  };
 }

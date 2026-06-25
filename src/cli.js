@@ -10,6 +10,8 @@ import { redactHeaders, redactBody, redactPath, redactParams } from './redact.js
 import { renderPng, renderSvg } from './render.js';
 import { resolveTheme } from './themes.js';
 import { copyToClipboard } from './clipboard.js';
+import { uploadFile } from './upload.js';
+import { confirmUpload } from './confirm.js';
 
 // Minimal ANSI helpers for the terminal summary.
 const c = {
@@ -21,6 +23,9 @@ const c = {
   cyan: (s) => `\x1b[36m${s}\x1b[0m`,
   magenta: (s) => `\x1b[35m${s}\x1b[0m`,
 };
+
+// Bodies longer than this nudge the user toward --max-body-lines/-depth.
+const LONG_BODY_TIP_LINES = 50;
 
 function timestampParts() {
   const d = new Date();
@@ -107,9 +112,50 @@ export async function run(options) {
   // Redact for display only.
   const displayHeaders = redactHeaders(spec.headers, redaction);
   const displayQuery = redactParams(spec.query || [], redaction);
-  const displayBody = prettyJson(redactBody(spec.body, redaction));
   const displayPath = redactPath(spec.path, redaction);
-  const displayResponseBody = response.ok ? redactBody(response.body, redaction) : response.body;
+
+  // Request body: for -F, synthesize a `name=value` / `name=@file` listing
+  // (redacted as form fields) and render it as a form. Otherwise the data body.
+  let displayBody;
+  let bodyKind;
+  if (spec.form) {
+    const enc = spec.form
+      .map((f) => (f.file ? `${f.name}=@${f.file}` : `${f.name}=${f.value}`))
+      .join('&');
+    displayBody = redactBody(enc, redaction).split('&').join('\n');
+    bodyKind = 'form';
+  } else {
+    displayBody = prettyJson(redactBody(spec.body, redaction));
+    bodyKind = bodyKindOf(displayBody, headerValue(spec.headers, 'content-type'));
+  }
+
+  let displayResponseBody = response.ok ? redactBody(response.body, redaction) : response.body;
+  const responseBodyKind = response.isJson
+    ? 'json'
+    : bodyKindOf(displayResponseBody, response.contentType);
+
+  // Big-body handling: tip when long (counted before trimming), then collapse
+  // JSON depth, then cap lines. All opt-in — default leaves bodies untouched.
+  const { maxBodyLines, maxBodyDepth } = options;
+  const reqLines = displayBody ? displayBody.split('\n').length : 0;
+  const respLines = displayResponseBody ? String(displayResponseBody).split('\n').length : 0;
+  const longest = Math.max(reqLines, respLines);
+  if (!maxBodyLines && !maxBodyDepth && longest > LONG_BODY_TIP_LINES) {
+    const which = respLines >= reqLines ? 'response' : 'request';
+    process.stderr.write(
+      c.dim(`   ℹ ${which} body is ${longest} lines — pass --max-body-lines or --max-body-depth to trim the card\n`)
+    );
+  }
+  if (maxBodyDepth) {
+    if (bodyKind === 'json') displayBody = collapseDepth(displayBody, maxBodyDepth);
+    if (responseBodyKind === 'json' && displayResponseBody) {
+      displayResponseBody = collapseDepth(displayResponseBody, maxBodyDepth);
+    }
+  }
+  if (maxBodyLines) {
+    if (displayBody) displayBody = truncateLines(displayBody, maxBodyLines);
+    if (displayResponseBody) displayResponseBody = truncateLines(displayResponseBody, maxBodyLines);
+  }
   const displayResponseHeaders =
     response.ok && Array.isArray(response.headers)
       ? redactHeaders(response.headers, redaction, { substringMatch: false })
@@ -135,8 +181,10 @@ export async function run(options) {
     query: displayQuery,
     headers: displayHeaders,
     body: displayBody,
-    bodyIsJson: isJsonString(displayBody),
+    bodyIsJson: bodyKind === 'json',
+    bodyKind,
     response: { ...response, body: displayResponseBody },
+    responseBodyKind,
     responseHeaders: displayResponseHeaders,
     command,
     requestMeta,
@@ -147,6 +195,8 @@ export async function run(options) {
     padding: options.padding,
     window: options.window,
     title: options.title,
+    scale: options.scale,
+    brand: options.brand,
     timestamp: human,
   };
 
@@ -215,6 +265,29 @@ export async function run(options) {
     openFile(savedPath || clipSource);
   }
 
+  // Upload (opt-in): preview the visible fields + confirm before making it public.
+  if (options.upload) {
+    const target = savedPath || clipSource;
+    const proceed = await confirmUpload({
+      host: options.uploadHost,
+      skip: options.skipUploadConfirm,
+      model,
+      filePath: target,
+      format,
+    });
+    if (proceed) {
+      try {
+        const link = await uploadFile(target, { host: options.uploadHost });
+        process.stderr.write(`${c.green('🔗')} uploaded ${c.bold(link)}\n`);
+        process.stdout.write(link + '\n'); // stdout so it's pipeable
+      } catch (e) {
+        process.stderr.write(c.yellow(`⚠ upload failed: ${e.message}\n`));
+      }
+    } else {
+      process.stderr.write(c.dim('   upload cancelled\n'));
+    }
+  }
+
   if (redaction.enabled) {
     process.stderr.write(c.dim('   sensitive values masked · use --no-redact to reveal\n'));
   }
@@ -277,4 +350,51 @@ function prettyJson(s) {
   } catch {
     return s;
   }
+}
+
+// Keep the first `max` lines, replacing the rest with a count marker.
+function truncateLines(text, max) {
+  if (!max || max <= 0) return text;
+  const lines = String(text).split('\n');
+  if (lines.length <= max) return text;
+  return lines.slice(0, max).join('\n') + `\n… ${lines.length - max} more lines`;
+}
+
+// Pretty-print JSON (2-space, like JSON.stringify(v,null,2)) but collapse any
+// object/array nested deeper than `maxDepth` to `{ … }` / `[ … ]`.
+function collapseDepth(jsonText, maxDepth) {
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch {
+    return jsonText; // not valid JSON — leave it alone
+  }
+  const pad = (d) => '  '.repeat(d);
+  const ser = (v, d) => {
+    if (Array.isArray(v)) {
+      if (v.length === 0) return '[]';
+      if (d >= maxDepth) return '[ … ]';
+      return '[\n' + v.map((x) => pad(d + 1) + ser(x, d + 1)).join(',\n') + '\n' + pad(d) + ']';
+    }
+    if (v && typeof v === 'object') {
+      const keys = Object.keys(v);
+      if (keys.length === 0) return '{}';
+      if (d >= maxDepth) return '{ … }';
+      return '{\n' + keys.map((k) => pad(d + 1) + JSON.stringify(k) + ': ' + ser(v[k], d + 1)).join(',\n') + '\n' + pad(d) + '}';
+    }
+    return JSON.stringify(v);
+  };
+  return ser(parsed, 0);
+}
+
+// Classify a body for syntax highlighting: content-type first, then heuristics.
+function bodyKindOf(text, contentType = '') {
+  const ct = String(contentType).toLowerCase();
+  const t = String(text || '').trim();
+  if (t === '') return 'plain';
+  if (/\bjson\b/.test(ct) || t.startsWith('{') || t.startsWith('[')) return 'json';
+  if (/html/.test(ct) || /^<!doctype html|^<html[\s>]/i.test(t)) return 'html';
+  if (/xml|svg/.test(ct) || /^<\?xml|^<[a-z!/]/i.test(t)) return 'xml';
+  if (/x-www-form-urlencoded/.test(ct) || /^[^=&\s]+=[^&]*(&[^=&\s]+=[^&]*)*$/.test(t)) return 'form';
+  return 'plain';
 }

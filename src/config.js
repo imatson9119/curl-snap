@@ -121,6 +121,12 @@ export function resolveOptions(cliOpts, config) {
   if (pad.warning) warnings.push(pad.warning);
   const fmt = validateFormat(pick('format', 'png'));
   if (fmt.warning) warnings.push(fmt.warning);
+  const scl = validateScale(pick('scale', 2));
+  if (scl.warning) warnings.push(scl.warning);
+  const mbl = validatePositiveInt(pick('maxBodyLines', undefined), '--max-body-lines');
+  if (mbl.warning) warnings.push(mbl.warning);
+  const mbd = validatePositiveInt(pick('maxBodyDepth', undefined), '--max-body-depth');
+  if (mbd.warning) warnings.push(mbd.warning);
 
   return {
     curl: cliOpts.curl,
@@ -140,6 +146,14 @@ export function resolveOptions(cliOpts, config) {
     title: pick('title', undefined),
     format: fmt.value,
     formatExplicit: cliOpts.format !== undefined || config.format !== undefined,
+    scale: scl.value,
+    brand: pick('brand', 'curl-snap'), // string, or false to hide the footer label
+    maxBodyLines: mbl.value,
+    maxBodyDepth: mbd.value,
+    // upload is CLI-only (never config-driven — avoids silent network egress)
+    upload: cliOpts.upload === true,
+    uploadHost: cliOpts.uploadHost || '0x0',
+    skipUploadConfirm: cliOpts.skipUploadConfirm === true,
     verbosity,
     features,
     warnings,
@@ -176,6 +190,20 @@ function validateFormat(v) {
   return { value: 'png', warning: `Unknown --format ${JSON.stringify(v)} (expected png|svg); using png.` };
 }
 
+function validateScale(v) {
+  const n = Number(v);
+  if (n === 1 || n === 2 || n === 3) return { value: n };
+  return { value: 2, warning: `Invalid --scale ${JSON.stringify(v)} (expected 1|2|3); using 2.` };
+}
+
+// Optional positive-int option (e.g. --max-body-lines/-depth). Unset → undefined.
+function validatePositiveInt(v, label) {
+  if (v == null) return { value: undefined };
+  const n = Number(v);
+  if (Number.isInteger(n) && n >= 1) return { value: n };
+  return { value: undefined, warning: `Invalid ${label} ${JSON.stringify(v)} (expected a positive integer); ignoring.` };
+}
+
 /** A sensible starter config users can edit. */
 export function exampleConfig() {
   return {
@@ -191,6 +219,10 @@ export function exampleConfig() {
     window: true,
     title: null, // window-bar title (defaults to the request domain)
     format: 'png', // png | svg
+    scale: 2, // PNG zoom: 1 | 2 | 3
+    brand: 'curl-snap', // footer label; set false to hide it
+    maxBodyLines: null, // cap rendered body lines (null = unlimited)
+    maxBodyDepth: null, // collapse JSON deeper than this (null = unlimited)
     outDir: null,
     extraRedact: [],
     reveal: [],
