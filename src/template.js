@@ -296,6 +296,9 @@ export function buildTree(model) {
   const windowTitle = model.window
     ? truncateTitle(model.title != null ? model.title : domain)
     : null;
+  // When the window bar is showing the domain (window on, no explicit title),
+  // drop the domain row under the method so it isn't duplicated.
+  const showDomain = !(model.window && model.title == null);
 
   const tone = statusTone(response.ok ? response.status : undefined);
   const mColor = methodColor(method, theme);
@@ -429,19 +432,23 @@ export function buildTree(model) {
               path
             ),
           ]),
-          h(
-            'div',
-            {
-              display: 'flex',
-              marginTop: 7,
-              marginLeft: 2,
-              fontSize: 12.5,
-              color: theme.textMuted,
-              letterSpacing: '0.02em',
-            },
-            // The old ::before { content:"↗ " } becomes a literal span.
-            [h('span', { opacity: 0.7 }, '↗ '), h('span', {}, domain)]
-          ),
+          ...(showDomain
+            ? [
+                h(
+                  'div',
+                  {
+                    display: 'flex',
+                    marginTop: 7,
+                    marginLeft: 2,
+                    fontSize: 12.5,
+                    color: theme.textMuted,
+                    letterSpacing: '0.02em',
+                  },
+                  // The old ::before { content:"↗ " } becomes a literal span.
+                  [h('span', { opacity: 0.7, marginRight: 6 }, '↗'), h('span', {}, domain)]
+                ),
+              ]
+            : []),
         ]
       ),
       // Body (sections).
