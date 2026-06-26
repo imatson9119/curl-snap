@@ -7,8 +7,8 @@
 class CurlSnap < Formula
   desc "Render a curl request and response as a clean, shareable image"
   homepage "https://github.com/imatson9119/curl-snap"
-  url "https://registry.npmjs.org/curl-snap/-/curl-snap-2.5.2.tgz"
-  sha256 "b5463c5bd296a5a31c312fae3d7c0e920c0338754657f5de546f605adb3c5442"
+  url "https://registry.npmjs.org/curl-snap/-/curl-snap-2.6.0.tgz"
+  sha256 "1e847a3414b6e15576cdba6f1b05f56e0705f7f6a1aae5cfae10c552ca7ee05e"
   license "MIT"
 
   depends_on "node"
