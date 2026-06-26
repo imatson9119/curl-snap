@@ -152,7 +152,7 @@ export function resolveOptions(cliOpts, config) {
     maxBodyDepth: mbd.value,
     // upload is CLI-only (never config-driven — avoids silent network egress)
     upload: cliOpts.upload === true,
-    uploadHost: cliOpts.uploadHost || '0x0',
+    uploadHost: cliOpts.uploadHost || 'catbox',
     skipUploadConfirm: cliOpts.skipUploadConfirm === true,
     verbosity,
     features,

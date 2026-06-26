@@ -55,7 +55,7 @@ Options:
       --max-body-depth <n>   collapse JSON nested deeper than n to { … }
       --open / --no-open        open (or don't) the image after creating it
       --upload         upload the image and print a link (asks to confirm first)
-      --upload-host <h>         upload host (default 0x0)
+      --upload-host <h>         upload host: catbox (default) | litterbox | file.io
       --dangerously-skip-upload-confirm   skip the upload confirmation prompt
       --width <px>     card width (default 760)
       --padding <px>   space around the card (default 28)

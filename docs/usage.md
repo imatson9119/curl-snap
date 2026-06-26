@@ -42,7 +42,7 @@ argument for anything non-trivial.
 | `--max-body-depth <n>` | Collapse JSON nested deeper than `n` to `{ … }` |
 | `--open` / `--no-open` | Open (or don't) the image after making it |
 | `--upload` | Upload the image and print a link (confirms first) |
-| `--upload-host <h>` | Upload host (default `0x0`) |
+| `--upload-host <h>` | Upload host: `catbox` (default), `litterbox`, `file.io` |
 | `--dangerously-skip-upload-confirm` | Skip the upload confirmation prompt |
 | `--width <px>` | Card width (default 760) |
 | `--padding <px>` | Space around the card (default 28) |
@@ -137,8 +137,8 @@ and gives you two opt-in knobs:
 
 ## Uploading & sharing a link
 
-`--upload` posts the image to a host (default [0x0.st](https://0x0.st)) and prints
-a URL — handy for chat/tweets where you can't paste an image directly.
+`--upload` posts the image to a host (default [catbox.moe](https://catbox.moe)) and
+prints a URL — handy for chat/tweets where you can't paste an image directly.
 
 Because the upload is **public** and redaction is best-effort, curl-snap treats it
 as a deliberate, eyes-open action:
@@ -150,4 +150,14 @@ as a deliberate, eyes-open action:
 - In a **non-interactive shell** it refuses unless you pass
   `--dangerously-skip-upload-confirm`.
 
-The host is pluggable via `--upload-host`; 0x0.st is the only one bundled today.
+The host is selectable via `--upload-host`. Bundled hosts:
+
+| Host | Link lifetime | Notes |
+| --- | --- | --- |
+| `catbox` (default) | persistent | catbox.moe |
+| `litterbox` | 72h | temporary catbox |
+| `file.io` | until first download / 14d | ephemeral |
+
+Several are bundled on purpose: free hosts come and go (the previous default,
+0x0.st, disabled uploads indefinitely), so if one stops working you can switch
+with a flag rather than wait for a release.

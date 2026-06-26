@@ -10,7 +10,7 @@ import { redactHeaders, redactBody, redactPath, redactParams, MASK } from './red
 import { renderPng, renderSvg } from './render.js';
 import { resolveTheme } from './themes.js';
 import { copyToClipboard } from './clipboard.js';
-import { uploadFile } from './upload.js';
+import { uploadFile, uploadHosts } from './upload.js';
 import { confirmUpload } from './confirm.js';
 
 // Minimal ANSI helpers for the terminal summary.
@@ -282,6 +282,10 @@ export async function run(options) {
         process.stdout.write(link + '\n'); // stdout so it's pipeable
       } catch (e) {
         process.stderr.write(c.yellow(`⚠ upload failed: ${e.message}\n`));
+        const others = uploadHosts().filter((h) => h !== options.uploadHost);
+        if (others.length) {
+          process.stderr.write(c.dim(`   try another host: --upload-host ${others.join(' | ')}\n`));
+        }
       }
     } else {
       process.stderr.write(c.dim('   upload cancelled\n'));

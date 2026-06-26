@@ -6,6 +6,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-06-26
+
+### Changed
+- **`--upload` now defaults to catbox.moe, and the host is selectable.** 0x0.st
+  (the previous default) disabled uploads indefinitely, so it's been removed.
+  `--upload-host` now chooses between `catbox` (default, persistent), `litterbox`
+  (72h), and `file.io` (ephemeral) — several are bundled so a single host going
+  away never breaks the feature again. On failure, the CLI suggests the others.
+
 ## [2.5.2] - 2026-06-26
 
 ### Security
