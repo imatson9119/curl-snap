@@ -324,7 +324,11 @@ function openFile(filePath) {
   } else if (process.platform === 'win32') {
     execFile('cmd', ['/c', 'start', '', filePath], () => {});
   } else if (/microsoft/i.test(os.release()) || process.env.WSL_DISTRO_NAME) {
-    execFile('sh', ['-c', `explorer.exe "$(wslpath -w ${JSON.stringify(filePath)})"`], () => {});
+    // Convert to a Windows path and open it without a shell — interpolating the
+    // path into `sh -c` would let `a$(cmd).png` execute `cmd`.
+    execFile('wslpath', ['-w', filePath], (err, stdout) => {
+      if (!err) execFile('explorer.exe', [stdout.trim()], () => {});
+    });
   } else {
     execFile('xdg-open', [filePath], () => {});
   }

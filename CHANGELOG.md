@@ -6,6 +6,23 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.2] - 2026-06-26
+
+### Security
+- **Clipboard/open no longer build shell command strings from file paths.** The
+  clipboard and `--open` helpers passed the (only JSON-stringified, not
+  shell-escaped) output path into `sh -c` / PowerShell, so a crafted `--out` path
+  like `a$(cmd).png` could run `cmd` locally. Paths are now passed as argv
+  elements, fed via stdin, or embedded as single-quoted PowerShell literals — no
+  shell interpolation. Not remotely triggerable (paths are user-supplied, not from
+  responses), but you should no longer treat untrusted `--out` paths as unsafe.
+
+### Fixed
+- **`--upload` failures are now diagnosable.** A network-level failure used to
+  print the opaque "fetch failed"; the upload now surfaces the underlying cause
+  (e.g. `ECONNRESET`, `ENOTFOUND`, TLS errors) and applies a 30s timeout so it
+  fails with a clear message instead of hanging.
+
 ## [2.5.1] - 2026-06-26
 
 ### Fixed

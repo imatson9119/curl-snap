@@ -13,6 +13,7 @@ const VERSION = JSON.parse(
   fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')
 ).version;
 const USER_AGENT = `curl-snap/${VERSION}`;
+const TIMEOUT_MS = 30_000;
 
 const HOSTS = {
   '0x0': { url: 'https://0x0.st', field: 'file', parse: (t) => t.trim() },
@@ -20,6 +21,20 @@ const HOSTS = {
 
 export function uploadHosts() {
   return Object.keys(HOSTS);
+}
+
+// fetch() rejects (rather than returning a response) only on network-level
+// failures — DNS, connection refused/reset, TLS, an IPv6 blackhole, or our
+// timeout. undici collapses them all to the unhelpful "fetch failed"; the real
+// reason lives in err.cause. Pull out something actionable.
+function describeNetworkError(err, url) {
+  if (err && err.name === 'TimeoutError') {
+    return `no response from ${url} within ${TIMEOUT_MS / 1000}s — the host may be down or unreachable`;
+  }
+  const cause = (err && err.cause) || err;
+  const code = cause && cause.code;
+  const msg = (cause && cause.message) || (err && err.message) || 'network error';
+  return `could not reach ${url}: ${msg}${code ? ` (${code})` : ''}`;
 }
 
 /**
@@ -33,11 +48,17 @@ export async function uploadFile(filePath, { host = '0x0' } = {}) {
   const buf = fs.readFileSync(filePath);
   const fd = new FormData();
   fd.append(cfg.field, new Blob([buf]), path.basename(filePath));
-  const res = await fetch(cfg.url, {
-    method: 'POST',
-    body: fd,
-    headers: { 'User-Agent': USER_AGENT },
-  });
+  let res;
+  try {
+    res = await fetch(cfg.url, {
+      method: 'POST',
+      body: fd,
+      headers: { 'User-Agent': USER_AGENT },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (err) {
+    throw new Error(describeNetworkError(err, cfg.url));
+  }
   if (!res.ok) {
     // Hosts like 0x0.st return a human-readable reason in the body (e.g.
     // "User agent not allowed") — surface it instead of just the status line.
