@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { parseCurl } from './parse-curl.js';
 import { execute } from './execute.js';
-import { redactHeaders, redactBody, redactPath, redactParams } from './redact.js';
+import { redactHeaders, redactBody, redactPath, redactParams, MASK } from './redact.js';
 import { renderPng, renderSvg } from './render.js';
 import { resolveTheme } from './themes.js';
 import { copyToClipboard } from './clipboard.js';
@@ -288,7 +288,17 @@ export async function run(options) {
     }
   }
 
-  if (redaction.enabled) {
+  // Only mention masking when something was actually masked — the MASK sentinel
+  // shows up in a displayed value exactly when redaction touched it.
+  const hasMask = (v) => v != null && String(v).includes(MASK);
+  const didMask =
+    hasMask(displayPath) ||
+    hasMask(displayBody) ||
+    hasMask(displayResponseBody) ||
+    displayQuery.some((q) => hasMask(q.value)) ||
+    displayHeaders.some((h) => hasMask(h.value)) ||
+    displayResponseHeaders.some((h) => hasMask(h.value));
+  if (redaction.enabled && didMask) {
     process.stderr.write(c.dim('   sensitive values masked · use --no-redact to reveal\n'));
   }
   if (options.verbosity && options.verbosity !== 'low') {

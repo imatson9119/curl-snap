@@ -6,6 +6,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-06-26
+
+### Fixed
+- **`--upload` hang:** declining the upload confirmation no longer leaves the
+  process hanging (the `/dev/tty` read stream is now destroyed, so it stops
+  holding the event loop open and requiring a manual Ctrl-C).
+- **Masking notice:** the "sensitive values masked" line now prints only when a
+  value was actually masked, not on every redaction-enabled run.
+
 ## [2.4.0] - 2026-06-25
 
 ### Added

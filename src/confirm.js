@@ -111,7 +111,16 @@ function askTty(writeFd, prompt) {
     const input = fs.createReadStream(null, { fd: rfd }); // autoClose closes rfd
     const rl = readline.createInterface({ input });
     let done = false;
-    const finish = (val) => { if (!done) { done = true; rl.close(); resolve(val); } };
+    // Destroy the input stream too: rl.close() alone leaves the /dev/tty stream
+    // open, so its fd keeps the event loop alive and the process hangs on exit
+    // (most visible when the user declines and there's no upload left to run).
+    const finish = (val) => {
+      if (done) return;
+      done = true;
+      rl.close();
+      input.destroy();
+      resolve(val);
+    };
     rl.once('line', finish);
     rl.once('close', () => finish(''));
     input.once('error', () => finish(''));
