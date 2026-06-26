@@ -243,3 +243,17 @@ export function initConfig(targetPath) {
   fs.writeFileSync(dest, JSON.stringify(exampleConfig(), null, 2) + '\n');
   return dest;
 }
+
+/**
+ * Merge `patch` into the global config file (creating it if absent) and write it
+ * back, preserving every other key. Used by interactive commands that persist a
+ * single setting (e.g. `curl-snap themes`). Returns the path written.
+ */
+export function updateUserConfig(patch, targetPath) {
+  const dest = targetPath || configPaths().global[0];
+  const current = fs.existsSync(dest) ? readJson(dest) || {} : {};
+  const next = { ...current, ...patch };
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, JSON.stringify(next, null, 2) + '\n');
+  return dest;
+}

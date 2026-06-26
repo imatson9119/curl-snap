@@ -5,11 +5,31 @@
 The full flag reference and per-feature guides. For themes see
 [themes.md](themes.md); for config files see [configuration.md](configuration.md).
 
+## Providing the curl
+
+curl-snap takes the curl command from the first source that has one, in order:
+a quoted argument, `--file <path>`, stdin (a pipe), then `--clipboard`. If none
+of those supply one and you're on a terminal, it prompts you to paste it
+(multi-line — press `Ctrl-D` to render, `Ctrl-C` to cancel).
+
+```sh
+curl-snap "curl https://api.example.com -d '{\"name\":\"Ada\"}'"  # argument
+curl-snap -f request.curl                                        # file
+pbpaste | curl-snap                                              # stdin
+curl-snap -c                                                     # clipboard
+curl-snap                                                        # paste when prompted
+```
+
+`--file` and the paste prompt both read raw bytes, so bodies full of quotes (or a
+devtools **Copy as cURL**) need no shell escaping — prefer them over the quoted
+argument for anything non-trivial.
+
 ## All options
 
 | Flag | What it does |
 | --- | --- |
 | `-c, --clipboard` | Read the curl command from the clipboard |
+| `-f, --file <path>` | Read the curl command from a file (no shell quoting) |
 | `-o, --out <file>` | Save the image to this path (otherwise it's clipboard-only) |
 | `--out-dir <dir>` | Save a timestamped image into this directory |
 | `--format <fmt>` | Output format: `png` (default) or `svg` |
@@ -30,8 +50,8 @@ The full flag reference and per-feature guides. For themes see
 | `--window` / `--no-window` | macOS-style title bar (default on) |
 | `--title <str>` | Window-bar title (default: the request domain) |
 | `--brand <str>` / `--no-brand` | Footer label (default: `curl-snap`) |
-| `--theme <name>` | Color theme (default `gruvbox`) · see `--list-themes` |
-| `--list-themes` | List the bundled themes and exit |
+| `--theme <name>` | Color theme (default `gruvbox`) · see `curl-snap themes` |
+| `--list-themes` | List the bundled themes and exit (plain list) |
 | `-v` / `-vv` / `--verbosity <l>` | Verbosity: low (default) / medium / high |
 | `--config <path>` / `--no-config` | Use / ignore config files |
 | `--init-config [path]` | Write a starter config |

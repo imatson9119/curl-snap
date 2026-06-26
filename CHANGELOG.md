@@ -6,6 +6,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-06-26
+
+### Added
+- **`-f`/`--file <path>`:** read the curl command from a file — no shell quoting,
+  so bodies full of quotes/newlines (or a saved devtools "Copy as cURL") just work.
+- **Interactive capture:** running `curl-snap` with no curl on a terminal now
+  prompts you to paste it (multi-line, `Ctrl-D` to render) instead of printing a
+  blurb. Flags still come from the CLI, e.g. `curl-snap --upload`.
+- **`curl-snap themes`:** browse the bundled themes with live truecolor previews
+  in an arrow-key selector and set one as your default (written to your global
+  config). Falls back to a plain list when piped. `--list-themes` still works.
+
 ## [2.4.1] - 2026-06-26
 
 ### Fixed

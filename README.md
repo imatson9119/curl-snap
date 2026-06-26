@@ -55,6 +55,12 @@ pbpaste | curl-snap
 
 # ...or copy a curl from anywhere and read it off the clipboard
 curl-snap -c
+
+# ...or read it from a file (handy for bodies full of quotes — no shell escaping)
+curl-snap -f request.curl
+
+# ...or just run curl-snap and paste it when prompted (Ctrl-D to render)
+curl-snap
 ```
 
 By default the image lands **on your clipboard** (ready to paste) plus a quick
@@ -83,7 +89,7 @@ flag.
 | --- | --- |
 | `-o, --out <file>` | Save the image (otherwise it's clipboard-only) |
 | `--format <fmt>` | `png` (default) or `svg` |
-| `--theme <name>` | Color theme (default `gruvbox`) · `--list-themes` to see them |
+| `--theme <name>` | Color theme (default `gruvbox`) · `curl-snap themes` to browse + set one |
 | `--background <v>` | Backdrop: `none` (default), a CSS color/gradient, or `auto` |
 | `--no-redact` | Show sensitive values (masked by default) |
 | `--upload` | Upload the image and print a link (asks first) |

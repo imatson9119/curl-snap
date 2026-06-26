@@ -4,9 +4,11 @@
 
 import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import readline from 'node:readline';
 import { promisify } from 'node:util';
 import { run } from '../src/cli.js';
 import { loadConfig, resolveOptions, initConfig, VERBOSITY_LEVELS, listThemes, DEFAULT_THEME } from '../src/config.js';
+import { runThemesCommand } from '../src/theme-picker.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -21,7 +23,11 @@ Usage:
   curl-snap '<curl command>'        capture the given curl
   pbpaste | curl-snap               read the curl from stdin
   curl-snap -c                      read the curl from the clipboard
-  curl-snap                         show this tool's description and version
+  curl-snap -f req.curl             read the curl from a file
+  curl-snap                         interactive: paste the curl, then Ctrl-D
+
+Subcommands:
+  curl-snap themes                  browse themes with color previews; set a default
 
 Verbosity (more metadata as you go up):
   -v, --verbosity medium            response headers + response size/type
@@ -36,6 +42,7 @@ Metadata toggles (override whatever verbosity implies):
 
 Options:
   -c, --clipboard      read the curl command from the clipboard
+  -f, --file <path>    read the curl command from a file (no shell quoting)
   -o, --out <file>     output path (default ./curl-snap-<timestamp>.<ext>)
       --out-dir <dir>  directory for the timestamped image (when --out is not set)
       --format <fmt>   output format: png (default) | svg
@@ -110,6 +117,8 @@ function parseArgs(argv) {
       case '--version': opts.version = true; break;
       case '-c':
       case '--clipboard': opts.clipboard = true; break;
+      case '-f':
+      case '--file': opts.file = value(); break;
       case '-o':
       case '--out': opts.out = value(); break;
       case '--out-dir': opts.outDir = value(); break;
@@ -176,6 +185,22 @@ async function readStdin() {
   return Buffer.concat(chunks).toString('utf8').trim();
 }
 
+// Interactive capture: when there's no curl anywhere and we're on a terminal,
+// prompt the user to paste it (multi-line, terminated by Ctrl-D). Reading from
+// the TTY this way avoids shell quoting entirely. Returns '' when not interactive.
+async function promptForCurl() {
+  if (!process.stdin.isTTY) return '';
+  process.stderr.write(
+    `\x1b[1mcurl-snap\x1b[0m ${VERSION} — paste your curl command, then press \x1b[1mCtrl-D\x1b[0m to render\n` +
+      `\x1b[2m(Ctrl-C to cancel · or pass it as an argument, pipe it, or use --file)\x1b[0m\n\n`
+  );
+  const rl = readline.createInterface({ input: process.stdin });
+  const lines = [];
+  for await (const line of rl) lines.push(line);
+  process.stderr.write('\n');
+  return lines.join('\n').trim();
+}
+
 async function readClipboard() {
   if (process.platform === 'darwin') {
     try {
@@ -189,7 +214,17 @@ async function readClipboard() {
 }
 
 async function main() {
-  const opts = parseArgs(process.argv.slice(2));
+  const rawArgs = process.argv.slice(2);
+
+  // Subcommands dispatch before flag parsing. A real curl never starts with one
+  // of these bare verbs (it starts with `curl`, a URL, or a flag), so there's no
+  // collision with the default capture form.
+  if (rawArgs[0] === 'themes') {
+    await runThemesCommand();
+    return;
+  }
+
+  const opts = parseArgs(rawArgs);
 
   if (opts.version) {
     process.stdout.write(`curl-snap ${VERSION}\n`);
@@ -233,15 +268,25 @@ async function main() {
   }
 
   let curl = opts._.join(' ').trim();
+  if (!curl && opts.file) {
+    try {
+      curl = readFileSync(opts.file, 'utf8').trim();
+    } catch (err) {
+      process.stderr.write(`\x1b[31m✖ Could not read --file ${opts.file}:\x1b[0m ${err.message}\n`);
+      process.exitCode = 1;
+      return;
+    }
+  }
   if (!curl && !process.stdin.isTTY) curl = await readStdin();
   if (!curl && opts.clipboard) {
     curl = await readClipboard();
     if (curl) process.stderr.write('\x1b[2m(using curl command from clipboard)\x1b[0m\n');
   }
+  // Last resort on a terminal: prompt for a paste rather than doing nothing.
+  if (!curl) curl = await promptForCurl();
 
   if (!curl) {
-    // Bare invocation (no curl anywhere): show a friendly description + version
-    // rather than trying to run nothing.
+    // Nothing anywhere and not interactive (e.g. empty pipe): a friendly note.
     process.stdout.write(
       `\x1b[1mcurl-snap\x1b[0m ${VERSION}\n` +
         'Turn a curl request into a polished PNG for PR evidence.\n\n' +

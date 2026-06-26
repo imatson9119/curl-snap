@@ -6,8 +6,14 @@ The card ships in **gruvbox** by default. Pick another palette with `--theme`:
 
 ```sh
 curl-snap '<curl>' --theme dracula
-curl-snap --list-themes        # see them all
+curl-snap themes               # browse with color previews and set a default
+curl-snap --list-themes        # plain list (for scripts)
 ```
+
+Running `curl-snap themes` in a terminal opens an arrow-key selector with a live
+truecolor swatch for each theme; pressing enter writes your choice as the default
+`theme` in your global config. When piped or redirected it prints a plain list
+instead, so scripts keep working.
 
 Fourteen themes ship in the box — eleven dark, three light:
 
