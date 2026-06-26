@@ -6,6 +6,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-06-26
+
+### Fixed
+- **`--upload`:** send an identifying `User-Agent` (`curl-snap/<version>`) on the
+  upload request. 0x0.st rejects generic/library user agents (Node's `fetch`
+  defaults to `node`), which surfaced as a `503`/`403` and a failed upload. Upload
+  errors now also include the host's response body (e.g. "User agent not allowed")
+  instead of just the status line.
+
 ## [2.5.0] - 2026-06-26
 
 ### Added
